@@ -5,7 +5,7 @@ import boto3
 
 # define model to use
 model = BedrockModel(
-    model_id="amazon-nova-",
+    model_id="amazon.nova-2-5-sonic",
     region_name="us-east-1",
 )
 
