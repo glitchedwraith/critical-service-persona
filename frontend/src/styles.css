@@ -58,6 +58,8 @@ small { font-size: 10.5px; letter-spacing: .14em; color: var(--muted); font-weig
 .pill { padding: 5px 11px; border-radius: 99px; border: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
 .pill.good { color: var(--green); border-color: rgba(52, 211, 153, .35); }
 .pill.bad { color: var(--red); border-color: rgba(248, 113, 113, .4); background: rgba(248, 113, 113, .08); }
+.pill.ai.thinking { color: var(--amber); border-color: rgba(251, 191, 36, .4); display: flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
+.pill.ai .spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--amber); border-top-color: transparent; animation: spin .8s linear infinite; }
 .top-actions { display: flex; align-items: center; gap: 12px; }
 .conn { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .conn::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
@@ -75,6 +77,10 @@ small { font-size: 10.5px; letter-spacing: .14em; color: var(--muted); font-weig
 .sit button:hover:not(:disabled) { background: rgba(255, 255, 255, .06); }
 .num { flex: none; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 11.5px; font-weight: 650; border: 1px solid var(--line); color: var(--muted); }
 .sit-title { flex: 1; font-size: 13.5px; }
+.sit { position: relative; }
+.sit .jump { width: auto; gap: 0; position: absolute; right: 6px; top: 50%; transform: translateY(-50%); padding: 3px 8px; border-radius: 99px; font-size: 10.5px; background: rgba(13, 17, 24, .95); color: var(--teal); border: 1px solid rgba(94, 234, 212, .35); opacity: 0; pointer-events: none; transition: opacity .15s; }
+.sit:hover .jump:not(:disabled), .sit .jump:focus-visible { opacity: 1; pointer-events: auto; }
+.replaying { font-size: 12px; color: var(--amber); }
 .sit.done .num { background: rgba(52, 211, 153, .14); border-color: transparent; color: var(--green); }
 .sit.done .sit-title { color: var(--muted); }
 .sit.next .num { border-color: var(--teal); color: var(--teal); }

@@ -1,9 +1,27 @@
 const base = (import.meta.env?.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
-async function request(path, body, signal) {
+const SESSION_KEY = 'truesignal.session';
+
+/** Per-browser demo session: the backend gives each id its own seeded copy. */
+function sessionId() {
+  try {
+    let id = localStorage.getItem(SESSION_KEY);
+    if (!/^[a-z0-9]{8,32}$/.test(id || '')) {
+      id = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => (b % 36).toString(36)).join('');
+      localStorage.setItem(SESSION_KEY, id);
+    }
+    return id;
+  } catch { return null; } // no storage (tests, privacy mode): use the shared demo
+}
+
+async function request(path, body, signal, { replay = false } = {}) {
   let response;
+  const headers = body === undefined ? {} : { 'Content-Type': 'application/json' };
+  const sid = sessionId();
+  if (sid) headers['X-Session-Id'] = sid;
+  if (replay) headers['X-Replay'] = '1'; // fast-forward: backend skips Bedrock
   try {
     response = await fetch(`${base}${path}`, { method: body === undefined ? 'GET' : 'POST', signal,
-      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+      headers,
       body: body === undefined ? undefined : JSON.stringify(body) });
   } catch (error) {
     if (error.name === 'AbortError') throw error;
@@ -18,8 +36,8 @@ async function request(path, body, signal) {
   return data;
 }
 export const api = {
-  state: signal => request('/state', undefined, signal),
-  act: (action, payload = {}, signal) => {
+  state: (signal, opts) => request('/state', undefined, signal, opts),
+  act: (action, payload = {}, signal, opts) => {
     const id = encodeURIComponent(payload.id || '');
     const routes = {
       sms: ['/sms/inbound', payload], verify: [`/rumors/${id}/verify`, {}],
@@ -28,6 +46,6 @@ export const api = {
       reset: ['/reset', {}],
     };
     const [path, body] = routes[action] || [`/chaos/${action}`, payload];
-    return request(path, body, signal);
+    return request(path, body, signal, opts);
   },
 };

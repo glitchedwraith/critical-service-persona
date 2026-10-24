@@ -1,3 +1,5 @@
+import AiPill from './AiPill.jsx';
+
 export default function TopBar({ system, connected, onReset, onTour, busy }) {
   const online = system.city_site_online;
   return (
@@ -8,6 +10,7 @@ export default function TopBar({ system, connected, onReset, onTour, busy }) {
         <div className={`pill ${online === false ? 'bad' : 'good'}`}>City site {online === false ? 'offline' : 'online'}</div>
         {system.cache_as_of && <div className="pill">Cache {system.cache_as_of}</div>}
         {system.delivery_fail_mode && <div className="pill bad">SMS gateway failing</div>}
+        <AiPill ai={system.ai} />
       </div>
       <div className="top-actions" data-tour="top-actions">
         <span className={`conn ${connected ? 'on' : ''}`}>{connected ? 'Live' : 'Connecting…'}</span>

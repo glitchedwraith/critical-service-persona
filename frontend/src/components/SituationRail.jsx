@@ -1,13 +1,15 @@
 import { situationStatus } from '../lib/derive.js';
 import ResidentInput from './ResidentInput.jsx';
 
-export default function SituationRail({ state, onRun, busy, danaWaiting, zone, onZone, onSend }) {
+export default function SituationRail({ state, onRun, onJump, replaying, busy, danaWaiting, zone, onZone, onSend }) {
   const status = situationStatus(state);
   return (
     <aside className="rail glass" data-tour="situations">
       <div className="rail-head">
         <small>SITUATIONS</small>
-        <span className="muted">{(state.system.situations_done || []).length}/{state.situations.length}</span>
+        {replaying
+          ? <span className="replaying">Fast-forwarding{replaying.total ? ` ${replaying.done}/${replaying.total}` : '…'}</span>
+          : <span className="muted">{(state.system.situations_done || []).length}/{state.situations.length}</span>}
       </div>
       <ol className="situations">
         {state.situations.map((s, i) => (
@@ -17,6 +19,10 @@ export default function SituationRail({ state, onRun, busy, danaWaiting, zone, o
               <span className="sit-title">{s.title}</span>
               {status[s.id] === 'next' && <span className="next-tag">{danaWaiting ? 'Dana first' : 'Next'}</span>}
             </button>
+            {(status[s.id] === 'done' || status[s.id] === 'idle') && (
+              <button className="jump" onClick={() => onJump(s.id)} disabled={busy}
+                title={`Reset your demo and fast-forward to “${s.title}”`}>Start here</button>
+            )}
           </li>
         ))}
       </ol>

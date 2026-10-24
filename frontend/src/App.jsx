@@ -10,8 +10,9 @@ import TraceStrip from './components/TraceStrip.jsx';
 import useGuidedTour from './tour/useGuidedTour.js';
 
 export default function App() {
-  const { state, connected, error, arrivals, act } = useLiveState();
+  const { state, connected, error, arrivals, act, jump } = useLiveState();
   const [pending, setPending] = useState(false);
+  const [replaying, setReplaying] = useState(null); // {done, total, title} while fast-forwarding
   const [zone, setZone] = useState(null);
   const focus = useMemo(() => danaFocus(state), [state]);
   const running = Boolean(state.system.active_situation?.running);
@@ -29,6 +30,12 @@ export default function App() {
     try { return Boolean(await act(action, payload)); } finally { setPending(false); }
   }
 
+  async function onJump(id) {
+    tour.stop();
+    setPending(true); setReplaying({ done: 0, total: 0 });
+    try { return await jump(id, setReplaying); } finally { setPending(false); setReplaying(null); }
+  }
+
   return (
     <div className="app">
       <div className="map-layer">
@@ -40,6 +47,7 @@ export default function App() {
         <div className="middle">
           <SituationRail state={state} busy={busy} danaWaiting={focus.actions.length > 0}
             onRun={id => onAction('situation', { id })}
+            onJump={onJump} replaying={replaying}
             zone={zone || state.zones[0]?.id} onZone={setZone}
             onSend={payload => onAction('sms', payload)} />
           <div className="center">

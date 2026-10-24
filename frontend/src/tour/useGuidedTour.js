@@ -171,5 +171,7 @@ export default function useGuidedTour(view) {
 
   useEffect(() => () => ctx.current.drv?.destroy(), []);
 
-  return { start, replay };
+  const stop = useCallback(() => { ctx.current.startAfterReset = false; ctx.current.drv?.destroy(); }, []);
+
+  return { start, replay, stop };
 }
