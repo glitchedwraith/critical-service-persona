@@ -4,7 +4,7 @@ pipeline. Shapes match plan.md §3.4. Swap the import in app.py to pipeline
 """
 
 
-def extract(text: str, clusters: list, entity_ids: list) -> dict:
+def extract(text: str, clusters: list, entity_ids: list, entity_labels=None) -> dict:
     """Step 1: extract & cluster. Returns v3 §4 Step 1 shape."""
     tl = text.lower()
 

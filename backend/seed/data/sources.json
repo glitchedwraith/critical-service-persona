@@ -1,0 +1,8 @@
+[
+  {"id": "SRC-EOC", "name": "City EOC", "authority": 1},
+  {"id": "SRC-MGR-A", "name": "Shelter A manager", "authority": 2},
+  {"id": "SRC-MGR-D", "name": "Shelter D manager", "authority": 2},
+  {"id": "SRC-RC", "name": "Red Cross liaison", "authority": 2},
+  {"id": "SRC-NEWS", "name": "Local news", "authority": 3},
+  {"id": "SRC-RES", "name": "Resident report", "authority": 4}
+]

@@ -1,0 +1,145 @@
+# TrueSignal architecture. Render: python3 scripts/render_architecture.py
+# Icons: official AWS Architecture Icons (aws-icons@3.3.0), devicon, Simple Icons.
+vars: { d2-config: { theme-id: 0; pad: 40 } }
+classes: {
+  svc:  { shape: image; width: 80; height: 80; label.near: outside-bottom-center; style: { font-size: 21; bold: true; font-color: "#0F172A" } }
+  actor: { shape: image; width: 90; height: 90; label.near: outside-bottom-center; style: { font-size: 21; bold: true; font-color: "#0F172A" } }
+  logo: { shape: image; width: 56; height: 56; label.near: outside-bottom-center; style: { font-size: 18; font-color: "#334155" } }
+  step: { width: 300; height: 130; style: { border-radius: 12; fill: "#FFFFFF"; stroke: "#E2E8F0"; stroke-width: 2; font-size: 20; font-color: "#0F172A"; shadow: true } }
+  band: { style: { border-radius: 20; font-size: 24; bold: true } }
+  ghost: { label: ""; style: { fill: transparent; stroke: transparent } }
+  flow: { style: { stroke: "#2563EB"; stroke-width: 3; font-size: 20; font-color: "#1E40AF"; bold: true } }
+  ai:   { style: { stroke: "#01A88D"; stroke-width: 3; stroke-dash: 4; font-size: 19; font-color: "#047857"; bold: true } }
+  human: { style: { stroke: "#7C3AED"; stroke-width: 3; font-size: 20; font-color: "#5B21B6"; bold: true } }
+  card: { width: 360; height: 120; style: { border-radius: 12; fill: "#FFFFFF"; stroke: "#CBD5E1"; stroke-width: 2; font-size: 19; font-color: "#0F172A" } }
+  store: { style: { stroke: "#64748B"; stroke-width: 2; font-size: 18; font-color: "#334155" } }
+}
+
+grid-rows: 3
+vertical-gap: 30
+title: |md
+  # TrueSignal — trustworthy answers when the city goes dark
+  A quake knocks out the city website. Residents keep texting and rumors spread faster than facts.<br/>
+  TrueSignal runs in an **AWS region independent of city infrastructure**, answers **only from official records**, and **Dana approves every public broadcast**.
+| { style.font-size: 22 }
+
+main: {
+  class: ghost
+  grid-columns: 3
+  horizontal-gap: 60
+
+  city: "IN THE CITY" {
+    class: band
+    style: { fill: "#F8FAFC"; stroke: "#CBD5E1" }
+    grid-columns: 1
+    vertical-gap: 60
+    down: "✕ City website · ✕ primary info channel\nDOWN after the quake" {
+      style: { fill: "#FEF2F2"; stroke: "#DC2626"; stroke-dash: 5; font-color: "#B91C1C"; font-size: 19; bold: true; border-radius: 12 }
+    }
+    residents: "Residents\nquestions & rumors" { class: actor; icon: https://cdn.jsdelivr.net/npm/aws-icons@3.3.0/icons/resource/Users.svg }
+    sms: "SMS gateway\nsimulated in the demo" { class: svc; icon: https://cdn.jsdelivr.net/npm/aws-icons@3.3.0/icons/architecture-service/AWSEndUserMessaging.svg }
+    why: |md
+      ### Why a separate AWS region?
+      The quake takes out city servers and<br/>
+      the website with them. TrueSignal and<br/>
+      the SMS gateway run in an AWS region<br/>
+      that doesn't share that failure, so<br/>
+      residents still get answers — always<br/>
+      stamped with how old the info is.<br/>
+    | { style.font-size: 19 }
+    residents -> down: "can't reach" { style: { stroke: "#DC2626"; stroke-width: 2; stroke-dash: 4; font-color: "#B91C1C"; font-size: 18 } }
+    residents -> sms: "① text" { class: flow }
+  }
+
+  aws: "AWS — INDEPENDENT REGION · STAYS ONLINE" {
+    class: band
+    icon: https://cdn.jsdelivr.net/npm/aws-icons@3.3.0/icons/architecture-group/AWSCloud.svg
+    icon.near: top-left
+    style: { fill: "#FFFFFF"; stroke: "#232F3E"; stroke-width: 3 }
+    grid-columns: 1
+    vertical-gap: 50
+
+    edge: {
+      class: ghost
+      grid-columns: 2
+      horizontal-gap: 90
+      api: "Amazon API Gateway" { class: svc; icon: https://cdn.jsdelivr.net/npm/aws-icons@3.3.0/icons/architecture-service/AmazonAPIGateway.svg }
+      ai: {
+        label: ""
+        style: { border-radius: 14; fill: "#ECFDF5"; stroke: "#01A88D"; stroke-width: 2 }
+        grid-columns: 2
+        horizontal-gap: 30
+        bedrock: "Amazon Bedrock\nConverse API · forced JSON" { class: svc; icon: https://cdn.jsdelivr.net/npm/aws-icons@3.3.0/icons/architecture-service/AmazonBedrock.svg }
+        claude: "Claude Haiku 4.5" { class: logo; icon: https://cdn.simpleicons.org/claude }
+      }
+    }
+
+    lambda: "AWS Lambda — one Python function" {
+      icon: https://cdn.jsdelivr.net/npm/aws-icons@3.3.0/icons/architecture-service/AWSLambda.svg
+      icon.near: top-left
+      style: { border-radius: 16; fill: "#FFF7ED"; stroke: "#ED7100"; stroke-width: 2; font-size: 21; bold: true }
+      grid-columns: 2
+      horizontal-gap: 50
+      vertical-gap: 50
+      extract: "② Understand\ngroup many wordings\ninto one rumor" { class: step }
+      loop: "⑦ Rumor watch\nfading → resolved\nstill spreading → reopened" { class: step }
+      verify: "③ Verify & draft\nfrom official records only" { class: step }
+      safety: "④ Safety check · plain code\nreal shelters & addresses\nmost trusted, unexpired source\nexpired → “can't confirm”" { class: step; style: { fill: "#F0FDF4"; stroke: "#16A34A" } }
+      extract -> verify { class: flow }
+      verify -> safety { class: flow }
+    }
+
+    store: {
+      class: ghost
+      grid-columns: 2
+      horizontal-gap: 90
+      ddb: "Amazon DynamoDB\nofficial records · rumors · outbox" { class: svc; icon: https://cdn.jsdelivr.net/npm/aws-icons@3.3.0/icons/architecture-service/AmazonDynamoDB.svg }
+      spacer: { class: ghost; width: 300; height: 10 }
+    }
+
+    edge.api -> lambda.extract { class: flow }
+    lambda.verify -> edge.ai: "AI for ② ③" { class: ai }
+    lambda.loop -> store.ddb: "message rates" { class: store }
+  }
+
+  eoc: "IN THE EOC" {
+    class: band
+    style: { fill: "#FAF5FF"; stroke: "#C4B5FD" }
+    grid-columns: 1
+    vertical-gap: 60
+    dana: "Dana · EOC officer" { class: actor; icon: https://cdn.jsdelivr.net/npm/aws-icons@3.3.0/icons/resource/User.svg }
+    ui: "Officer screen" {
+      style: { border-radius: 14; fill: "#FFFFFF"; stroke: "#94A3B8"; font-size: 21; bold: true }
+      grid-columns: 3
+      horizontal-gap: 30
+      react: React { class: logo; icon: https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/react/react-original.svg }
+      vite: Vite { class: logo; icon: https://cdn.jsdelivr.net/gh/devicons/devicon@v2.16.0/icons/vitejs/vitejs-original.svg }
+      leaflet: "Leaflet map" { class: logo; icon: https://cdn.simpleicons.org/leaflet }
+    }
+    why: |md
+      ### Human in the loop
+      Bedrock drafts; code checks; **Dana<br/>
+      decides**. Individual replies send only<br/>
+      when backed by a trusted, unexpired<br/>
+      source. Every public broadcast waits<br/>
+      for her approval — and conflicting<br/>
+      officials are hers to settle.<br/>
+    | { style.font-size: 19 }
+    dana -> ui: "⑥ approve & send" { class: human }
+  }
+
+  city.sms <-> aws.edge.api: "texts in · replies out" { class: flow }
+  aws.lambda.safety -> eoc.ui: "⑤ draft for review" { class: human }
+}
+
+howto: "HOW IT WORKS" {
+  style: { fill: "#F8FAFC"; stroke: "#E2E8F0"; border-radius: 16; font-size: 20; bold: true; font-color: "#475569" }
+  grid-columns: 6
+  horizontal-gap: 24
+  s1: "①  Residents text\nwebsite is down,\nSMS still works" { class: card }
+  s2: "②  Bedrock understands\n12 wordings →\none rumor" { class: card }
+  s3: "③  Bedrock drafts\nusing official\nrecords only" { class: card }
+  s4: "④  Code checks it\nfake places, stale or\nlow-trust info blocked" { class: card; style: { fill: "#F0FDF4"; stroke: "#16A34A" } }
+  s5: "⑤ ⑥  Dana approves\nevery public\nbroadcast" { class: card; style: { fill: "#FAF5FF"; stroke: "#A78BFA" } }
+  s6: "⑦  Rumor watch\nfades → resolved\nspreads → reopened" { class: card }
+}

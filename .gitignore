@@ -13,3 +13,7 @@ env.local.json
 node_modules/
 dist/
 .vite/
+
+# EC2 deploy: host + SSH key path, written by deploy/provision.sh
+deploy/.instance
+deploy/*.pem

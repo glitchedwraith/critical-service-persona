@@ -1,0 +1,103 @@
+[
+  {
+    "id": "site_down",
+    "title": "City website goes dark",
+    "narration": "4:30 AM. The quake knocked out the city website. TrueSignal keeps serving the last official bulletins.",
+    "steps": [
+      {
+        "action": "city_site",
+        "body": {
+          "online": false
+        }
+      }
+    ]
+  },
+  {
+    "id": "rumor_wave",
+    "title": "A rumor spreads",
+    "narration": "Texts flood in: “Shelter A closed, go to D.” TrueSignal groups them into one rumor.",
+    "steps": [
+      {
+        "action": "run_script",
+        "body": {
+          "script": "shelter_a_wave"
+        }
+      }
+    ]
+  },
+  {
+    "id": "rumor_fades",
+    "title": "The rumor dies down",
+    "narration": "Twenty quiet minutes pass. TrueSignal checks whether the rumor is fading.",
+    "steps": [
+      {
+        "action": "advance_clock",
+        "body": {
+          "minutes": 20
+        }
+      }
+    ]
+  },
+  {
+    "id": "officials_disagree",
+    "title": "Two officials disagree",
+    "narration": "The Red Cross says Shelter D closed. Shelter D's manager says it's open. Same authority — Dana decides.",
+    "steps": [
+      {
+        "action": "conflict_report",
+        "body": {
+          "shelter_id": "SH-D",
+          "source_id": "SRC-RC",
+          "status": "closed"
+        }
+      },
+      {
+        "action": "run_script",
+        "body": {
+          "script": "shelter_d_reports"
+        }
+      },
+      {
+        "action": "verify_entity",
+        "body": {
+          "entity_id": "SH-D"
+        }
+      }
+    ]
+  },
+  {
+    "id": "bulletin_expires",
+    "title": "Official info goes stale",
+    "narration": "The shelter updates expire. Asked again, TrueSignal won't call old info current.",
+    "steps": [
+      {
+        "action": "expire_bulletin",
+        "body": {
+          "id": "B-001"
+        }
+      },
+      {
+        "action": "expire_shelter",
+        "body": {
+          "id": "SH-A"
+        }
+      },
+      {
+        "action": "expire_shelter",
+        "body": {
+          "id": "SH-D"
+        }
+      },
+      {
+        "action": "run_script",
+        "body": {
+          "script": "stale_question"
+        }
+      },
+      {
+        "action": "reverify_open",
+        "body": {}
+      }
+    ]
+  }
+]

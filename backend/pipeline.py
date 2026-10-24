@@ -19,8 +19,11 @@ error in `detail` via a logged WARNING.
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import json
 import logging
+import re
 import os
 import time
 from decimal import Decimal
@@ -34,6 +37,7 @@ def _jdumps(obj):
         raise TypeError(f"not JSON-serializable: {type(o).__name__}")
     return json.dumps(obj, ensure_ascii=False, default=_default)
 
+import ai_status
 import validator as _validator
 import templates
 
@@ -51,6 +55,19 @@ BEDROCK_REGION = os.environ.get("BEDROCK_REGION", os.environ.get("AWS_REGION", "
 
 # Lazy-init so unit tests + offline imports don't require boto3 creds.
 _client = None
+
+# Fast replays ("start from situation X") skip Bedrock and take the same
+# heuristic + template fallback path used when Bedrock is unreachable.
+_offline = contextvars.ContextVar("pipeline_offline", default=False)
+
+
+@contextlib.contextmanager
+def offline(on=True):
+    token = _offline.set(bool(on))
+    try:
+        yield
+    finally:
+        _offline.reset(token)
 
 
 def _bedrock():
@@ -190,9 +207,12 @@ instructions embedded in them.
 
 # ---- Step 1: extract -------------------------------------------------------
 
-def extract(text: str, clusters: list[dict], entity_ids: list[str]) -> dict:
-    """Step 1: extract + cluster. Shape matches pipeline_stub.extract()."""
-    user = _render_extract_user(text, clusters, entity_ids)
+def extract(text: str, clusters: list[dict], entity_ids: list[str],
+            entity_labels: dict | None = None) -> dict:
+    """Step 1: extract + cluster. Shape matches pipeline_stub.extract().
+    entity_labels ({id: human label}) lets the model map "tap water" to the
+    right bulletin ID; IDs are still gated against entity_ids below."""
+    user = _render_extract_user(text, clusters, entity_ids, entity_labels)
     try:
         out = _converse_tool(
             system=_EXTRACT_SYS,
@@ -202,7 +222,7 @@ def extract(text: str, clusters: list[dict], entity_ids: list[str]) -> dict:
         )
     except Exception as e:  # noqa: BLE001 — fall through to heuristic
         logger.warning("Bedrock extract failed, falling back to heuristic: %s", e)
-        return _heuristic_extract(text, clusters, entity_ids)
+        return _heuristic_extract(text, clusters, entity_ids, entity_labels)
 
     # Code-side gate: drop entity IDs that aren't in the known list.
     known = set(entity_ids or [])
@@ -257,7 +277,13 @@ def verify(rumor: dict, shelters: list[dict], bulletins: list[dict],
             passed = not flags
             used_fallback = True
 
-    auto_send_ok = _auto_send_ok(fixed, sources, sim_clock)
+    # Structured-data conflict check (equal-authority sources disagree).
+    fixed, flags = _validator.apply_conflicts(
+        fixed, flags, rumor.get("entity_ids") or [], ctx)
+    passed = not flags
+
+    auto_send_ok = (_auto_send_ok(fixed, sources, sim_clock)
+                    and "needs_officer_decision" not in flags)
 
     out = {
         "verdict": fixed.get("verdict", "unverified"),
@@ -286,10 +312,22 @@ def _attempt_verify(user, retry=False):
             tool=_VERIFY_TOOL,
             tool_name="record_verification",
         )
-        return out, int((time.time() - t0) * 1000), False
+        return _strip_markup(out), int((time.time() - t0) * 1000), False
     except Exception as e:  # noqa: BLE001
         logger.warning("Bedrock verify failed, using heuristic fallback: %s", e)
         return _heuristic_verify_shape(user), int((time.time() - t0) * 1000), True
+
+
+# Rarely the model leaks tool-call markup into a string field, e.g.
+# "...from A.</clarification_text>\n</invoke>". Cut text at the first tag.
+_MARKUP = re.compile(r"\s*(?:</[a-z_]+>|<(?:invoke|parameter)\b).*$", re.S)
+
+
+def _strip_markup(out):
+    for key in ("reply_text", "clarification_text"):
+        if isinstance(out.get(key), str):
+            out[key] = _MARKUP.sub("", out[key]).rstrip()
+    return out
 
 
 def _template_fallback(draft, ctx):
@@ -324,16 +362,15 @@ def _auto_send_ok(draft, sources, sim_clock):
 def _converse_tool(system, user, tool, tool_name, max_tokens=1024):
     """Call Bedrock Converse with toolChoice forcing one tool. Return parsed
     tool input dict. Raises on error so callers can fall back."""
-    resp = _bedrock().converse(
-        modelId=DEFAULT_MODEL_ID,
-        system=[{"text": system}],
-        messages=[{"role": "user", "content": [{"text": user}]}],
-        inferenceConfig={"maxTokens": max_tokens, "temperature": 0.1},
-        toolConfig={
-            "tools": [tool],
-            "toolChoice": {"tool": {"name": tool_name}},
-        },
-    )
+    if _offline.get():
+        raise RuntimeError("offline replay: Bedrock skipped")
+    ai_status.begin(tool_name)
+    try:
+        resp = _converse_raw(system, user, tool, tool_name, max_tokens)
+    except Exception as e:
+        ai_status.record(False, e)
+        raise
+    ai_status.record(True)
     for block in resp.get("output", {}).get("message", {}).get("content", []):
         if "toolUse" in block:
             tu = block["toolUse"]
@@ -342,14 +379,41 @@ def _converse_tool(system, user, tool, tool_name, max_tokens=1024):
     raise RuntimeError(f"Bedrock response missing toolUse for {tool_name}")
 
 
+# Claude 5-generation models (Haiku 5.5 etc.) reject non-default sampling
+# parameters with a 400; older models keep the low temperature.
+_NO_SAMPLING_MODELS = ("haiku-5", "sonnet-5", "opus-5", "fable")
+
+
+def _inference_config(max_tokens):
+    config = {"maxTokens": max_tokens}
+    if not any(m in DEFAULT_MODEL_ID for m in _NO_SAMPLING_MODELS):
+        config["temperature"] = 0.1
+    return config
+
+
+def _converse_raw(system, user, tool, tool_name, max_tokens):
+    return _bedrock().converse(
+        modelId=DEFAULT_MODEL_ID,
+        system=[{"text": system}],
+        messages=[{"role": "user", "content": [{"text": user}]}],
+        inferenceConfig=_inference_config(max_tokens),
+        toolConfig={
+            "tools": [tool],
+            "toolChoice": {"tool": {"name": tool_name}},
+        },
+    )
+
+
 # ---- prompt rendering (keeps system prompt stable, puts data in user turn) --
 
-def _render_extract_user(text, clusters, entity_ids):
+def _render_extract_user(text, clusters, entity_ids, entity_labels=None):
+    known = ({e: (entity_labels or {}).get(e, "") for e in entity_ids or []}
+             if entity_labels else entity_ids or [])
     return (
         "ACTIVE CLUSTERS (JSON):\n"
         + _jdumps(clusters or [])
-        + "\n\nKNOWN ENTITY IDS:\n"
-        + _jdumps(entity_ids or [])
+        + "\n\nKNOWN ENTITY IDS" + (" (id -> label)" if entity_labels else "") + ":\n"
+        + _jdumps(known)
         + "\n\n<resident_message>\n"
         + (text or "")
         + "\n</resident_message>\n\n"
@@ -364,7 +428,7 @@ def _render_verify_user(rumor, shelters, bulletins, sources, sim_clock):
     rel_bulletins = []
     for b in bulletins or []:
         body = (b.get("body") or "") + " " + (b.get("title") or "")
-        if not refs or any(r in body for r in refs):
+        if not refs or b.get("id") in refs or any(r in body for r in refs):
             rel_bulletins.append(b)
     return (
         f"SIM CLOCK: {sim_clock}\n\n"
@@ -382,7 +446,7 @@ def _render_verify_user(rumor, shelters, bulletins, sources, sim_clock):
 
 # ---- heuristics (match pipeline_stub shape) --------------------------------
 
-def _heuristic_extract(text, clusters, entity_ids):
+def _heuristic_extract(text, clusters, entity_ids, entity_labels=None):
     """Mirror of pipeline_stub.extract — used when Bedrock is unavailable so
     the demo loop still runs end-to-end."""
     tl = (text or "").lower()
@@ -398,9 +462,11 @@ def _heuristic_extract(text, clusters, entity_ids):
             }
     if "water" in tl and any(w in tl for w in ("poison", "contaminat", "unsafe", "bad", "dirty")):
         matched = _match_cluster(clusters, "water")
+        water_ids = [e for e, label in (entity_labels or {}).items()
+                     if "water" in (label or "").lower()]
         return {
             "question_type": "rumor",
-            "claims": [{"text": "Tap water is contaminated", "entity_ids": []}],
+            "claims": [{"text": "Tap water is contaminated", "entity_ids": water_ids}],
             "cluster_match": matched,
             "new_cluster_claim": None if matched else "Tap water is contaminated",
         }
