@@ -120,9 +120,11 @@ def _rumor_flags(r, now):
     out = dict(r)
     out["emerging"] = bool(r.get("emerging")) or _rate_is_emerging(r.get("rate_per_10min"))
     out["outdated"] = bool(r.get("outdated"))
-    out["evidence_expired"] = any(
-        _ts_lt(e.get("expires_at"), now)
-        for e in (r.get("evidence") or [])
+    evidence = r.get("evidence") or []
+    # A rumor is stale only when nothing cited is still live. One leftover
+    # expired bulletin next to a live shelter must not trigger Redraft.
+    out["evidence_expired"] = bool(evidence) and not any(
+        clock.is_live(e.get("expires_at"), now) for e in evidence
     )
     return out
 
@@ -151,8 +153,7 @@ def _promote_delivered():
 
 
 def _ts_lt(a, b):
-    """Fixed-width 'HH:MM' lex-compare is a valid < within one sim day."""
-    return a is not None and b is not None and a < b
+    return clock.ts_lt(a, b)
 
 
 # ---- POST /sms/inbound -----------------------------------------------------
@@ -369,6 +370,29 @@ def _verify_rumor(rumor_id, trigger_msg_id=None):
     # Re-verifying replaces the pending draft instead of stacking a new one.
     prev = (db.get("TABLE_OUTBOUND", rumor["clarification_id"])
             if rumor.get("clarification_id") else None)
+    validator_meta = result.get("validator") or {}
+    flags = validator_meta.get("flags") or []
+    already_sent = prev and prev.get("state") in ("sent", "delivered", "failed")
+    # Don't open another "can't confirm" draft for a message we already sent
+    # from expired evidence — that is the Approve → Redraft loop.
+    if (already_sent and "all_evidence_expired" in flags
+            and not rumor.get("outdated")):
+        db.update("TABLE_RUMORS", rumor_id, {
+            "verdict": result.get("verdict", "unverified"),
+            "current_status_known": False,
+            "evidence": result.get("evidence") or [],
+            "validator": {
+                "passed": bool(validator_meta.get("passed")),
+                "flags": flags,
+                "fallback_used": bool(validator_meta.get("fallback_used")),
+            },
+            "auto_send_ok": False,
+        })
+        _append_trace(step="step2", ok=True,
+                      detail=f"verified {rumor_id} still expired; no new draft",
+                      ms=ms, message_id=trigger_msg_id)
+        return db.get("TABLE_RUMORS", rumor_id), None
+
     outbound_id = (prev["id"] if prev and prev.get("state") == "draft"
                    else _next_id("O"))
     outbound = {
@@ -389,7 +413,6 @@ def _verify_rumor(rumor_id, trigger_msg_id=None):
     }
     db.put("TABLE_OUTBOUND", outbound)
 
-    validator_meta = result.get("validator") or {}
     db.update("TABLE_RUMORS", rumor_id, {
         "verdict": result.get("verdict", "unverified"),
         "current_status_known": bool(result.get("current_status_known")),
@@ -401,7 +424,7 @@ def _verify_rumor(rumor_id, trigger_msg_id=None):
         "evidence_expired": False,
         "validator": {
             "passed": bool(validator_meta.get("passed")),
-            "flags": validator_meta.get("flags") or [],
+            "flags": flags,
             "fallback_used": bool(validator_meta.get("fallback_used")),
         },
         "auto_send_ok": bool(result.get("auto_send_ok")),

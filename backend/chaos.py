@@ -209,15 +209,52 @@ def _expire_shelter(body):
 
 # ---- verification ----------------------------------------------------------
 
-def _reverify(predicate):
+def _active_clarification_rumor_ids():
+    active_states = {"draft", "sent", "delivered", "failed"}
+    return {
+        outbound.get("rumor_id")
+        for outbound in db.scan("TABLE_OUTBOUND")
+        if outbound.get("kind") == "clarification"
+           and outbound.get("state") in active_states
+           and outbound.get("rumor_id")
+    }
+
+
+def _verify_one(rumors, refresh_existing=False):
+    """Verify at most one rumor so sibling clusters don't stack drafts.
+
+    If refresh_existing, prefer a rumor that already has a clarification
+    (officer_decision must update that draft). Otherwise skip the whole
+    set when a clarification already covers it (verify_entity).
+    """
     import app  # lazy
-    done = []
-    for rumor in db.scan("TABLE_RUMORS"):
-        if rumor.get("status") == "resolved" or not rumor.get("emerging"):
-            continue
-        if predicate(rumor):
-            app._verify_rumor(rumor["id"])
-            done.append(rumor["id"])
+    matching = list(rumors)
+    if not matching:
+        return [], []
+    covered = _active_clarification_rumor_ids()
+    preferred = [r for r in matching if r.get("id") in covered]
+    rest = [r for r in matching if r.get("id") not in covered]
+    if refresh_existing and preferred:
+        chosen = preferred[0]
+        skipped = [r["id"] for r in matching if r["id"] != chosen["id"]]
+        app._verify_rumor(chosen["id"])
+        return [chosen["id"]], skipped
+    if preferred:
+        return [], [r["id"] for r in matching]
+    chosen = rest[0]
+    app._verify_rumor(chosen["id"])
+    skipped = [r["id"] for r in rest[1:]]
+    return [chosen["id"]], skipped
+
+
+def _reverify(predicate):
+    matching = [
+        rumor for rumor in db.scan("TABLE_RUMORS")
+        if rumor.get("status") != "resolved"
+           and rumor.get("emerging")
+           and predicate(rumor)
+    ]
+    done, _skipped = _verify_one(matching, refresh_existing=True)
     return done
 
 
@@ -225,36 +262,13 @@ def _verify_entity(body):
     """{entity_id}: verify open rumors about an entity, even below the
     emerging threshold (used when official sources change mid-incident)."""
     _require(body, "entity_id")
-    import app  # lazy
     entity_id = body["entity_id"]
     matching = [
         rumor for rumor in db.scan("TABLE_RUMORS")
         if rumor.get("status") != "resolved"
            and entity_id in (rumor.get("entity_ids") or [])
     ]
-
-    # A correction in any of these states already represents this entity's
-    # incident. Do not create another outbound message for another rumor row.
-    active_states = {"draft", "sent", "delivered", "failed"}
-    active_rumor_ids = {
-        outbound.get("rumor_id")
-        for outbound in db.scan("TABLE_OUTBOUND")
-        if outbound.get("kind") == "clarification"
-           and outbound.get("state") in active_states
-           and outbound.get("rumor_id")
-    }
-    already_covered = any(r.get("id") in active_rumor_ids for r in matching)
-    done = []
-    skipped = []
-    for rumor in matching:
-        if already_covered:
-            skipped.append(rumor["id"])
-            continue
-        app._verify_rumor(rumor["id"])
-        done.append(rumor["id"])
-        # The first verification creates a draft; subsequent rumor rows for
-        # the same entity must not create duplicate drafts.
-        already_covered = True
+    done, skipped = _verify_one(matching, refresh_existing=False)
     return {"ok": True, "action": "verify_entity",
             "verified": done, "skipped_duplicates": skipped}
 

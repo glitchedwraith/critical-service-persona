@@ -12,9 +12,29 @@ DAY_MINUTES = 24 * 60
 
 
 def parse(ts):
-    """'HH:MM' -> minutes since midnight."""
-    h, m = ts.split(":")
+    """'HH:MM' or 'H:MM' -> minutes since midnight."""
+    h, m = str(ts).split(":")[:2]
     return int(h) * 60 + int(m)
+
+
+def ts_lt(a, b):
+    """True iff timestamp a is strictly before b. None-safe; accepts H:MM."""
+    if a in (None, "") or b in (None, ""):
+        return False
+    try:
+        return parse(a) < parse(b)
+    except (TypeError, ValueError):
+        return False
+
+
+def is_live(expires_at, sim_clock):
+    """Evidence is still valid when sim_clock is strictly before expires_at."""
+    if expires_at in (None, "") or sim_clock in (None, ""):
+        return False
+    try:
+        return parse(sim_clock) < parse(expires_at)
+    except (TypeError, ValueError):
+        return False
 
 
 def fmt(minutes):
@@ -42,7 +62,7 @@ def minutes_between(a, b):
 
 def is_expired(ts):
     """True if ts is strictly before now()."""
-    return parse(ts) < parse(now())
+    return ts_lt(ts, now())
 
 
 def advance(minutes):
@@ -53,5 +73,6 @@ def advance(minutes):
 
 
 __all__ = [
-    "SYSTEM_ID", "parse", "fmt", "now", "minutes_between", "is_expired", "advance",
+    "SYSTEM_ID", "parse", "fmt", "now", "minutes_between", "is_expired",
+    "advance", "ts_lt", "is_live",
 ]

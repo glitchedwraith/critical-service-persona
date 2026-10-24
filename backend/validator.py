@@ -20,6 +20,7 @@ view (which should regenerate once, then fall back to templates.py).
 """
 import re
 
+import clock
 import templates
 
 
@@ -32,14 +33,12 @@ _TRUNCATE_SUFFIX = "... reply MORE"
 
 def _ts_lt(a, b):
     """Return True iff a < b, treating None as unknown (-> False)."""
-    return a is not None and b is not None and a < b
+    return clock.ts_lt(a, b)
 
 
 def _not_expired(ts_expires, sim_clock):
     """True if sim_clock < ts_expires (evidence still valid)."""
-    if ts_expires is None or sim_clock is None:
-        return False
-    return sim_clock < ts_expires
+    return clock.is_live(ts_expires, sim_clock)
 
 
 def _source_authority(source_id, sources):
@@ -59,23 +58,92 @@ def _evidence_live(ev, sources, sim_clock, authority_cap=2):
     return authority <= authority_cap and _not_expired(ev.get("expires_at"), sim_clock)
 
 
-def _ground_evidence(ev, shelters, bulletins):
+def _ground_evidence(ev, shelters, bulletins, entity_ids=None):
+    """Overwrite timestamps from the matching shelter/bulletin row.
+
+    The model often copies last_verified_at into expires_at (e.g. Shelter D
+    updated 04:15, still valid until 06:00). Un-grounded timestamps must not
+    survive — that's what made Dana's Redraft loop after scenario 4.
+    """
     ev = dict(ev)
+    ids = set(entity_ids or [])
     ref = ev.get("ref")
     shelter = next((s for s in shelters or [] if s.get("id") == ref), None)
     bulletin = next((b for b in bulletins or [] if b.get("id") == ref), None)
+    if shelter is None and bulletin is None:
+        source_id = ev.get("source_id")
+        shelter = next(
+            (s for s in shelters or []
+             if s.get("status_source_id") == source_id
+             and (not ids or s.get("id") in ids)),
+            None,
+        )
+        if shelter is None:
+            bulletin = next(
+                (b for b in bulletins or []
+                 if b.get("source_id") == source_id
+                 and b.get("status") not in ("expired", "superseded")
+                 and (not ids or b.get("id") in ids
+                      or any(i and i in f"{b.get('id')} {b.get('title')} {b.get('body')}"
+                             for i in ids))),
+                None,
+            )
     if shelter:
+        ev["ref"] = shelter.get("id")
         ev["source_id"] = shelter.get("status_source_id", ev.get("source_id"))
         ev["published_at"] = shelter.get("status_updated_at")
         ev["last_verified_at"] = shelter.get("status_updated_at")
         ev["expires_at"] = shelter.get("status_expires_at")
+        ev["_grounded"] = True
     elif bulletin:
+        ev["ref"] = bulletin.get("id")
         ev["source_id"] = bulletin.get("source_id", ev.get("source_id"))
         ev["published_at"] = bulletin.get("published_at")
         ev["last_verified_at"] = bulletin.get("last_verified_at")
         ev["expires_at"] = (None if bulletin.get("status") in ("expired", "superseded")
                             else bulletin.get("expires_at"))
+        ev["_grounded"] = bulletin.get("status") not in ("expired", "superseded")
+    else:
+        ev["_grounded"] = False
     return ev
+
+
+def _table_evidence(entity_ids, shelters, bulletins):
+    """Canonical evidence rows for the rumor's entities — table timestamps only."""
+    ids = [i for i in (entity_ids or []) if i]
+    rows, seen = [], set()
+    for s in shelters or []:
+        if s.get("id") in ids and s["id"] not in seen:
+            rows.append(_ground_evidence({"ref": s["id"]}, shelters, bulletins, ids))
+            seen.add(s["id"])
+    for b in bulletins or []:
+        if b.get("status") in ("expired", "superseded") or b.get("id") in seen:
+            continue
+        blob = f"{b.get('id')} {b.get('title') or ''} {b.get('body') or ''}"
+        if b.get("id") in ids or any(i in blob for i in ids):
+            rows.append(_ground_evidence({"ref": b["id"]}, shelters, bulletins, ids))
+            seen.add(b["id"])
+    return rows
+
+
+def _normalize_evidence(raw, entity_ids, shelters, bulletins):
+    """Union table rows with grounded model citations; drop ungrounded / superseded."""
+    by_ref = {}
+    for ev in _table_evidence(entity_ids, shelters, bulletins):
+        if ev.get("_grounded") and ev.get("ref"):
+            by_ref[ev["ref"]] = ev
+    for ev in raw or []:
+        grounded = _ground_evidence(ev, shelters, bulletins, entity_ids)
+        ref = grounded.get("ref")
+        if not grounded.get("_grounded") or not ref:
+            continue
+        by_ref[ref] = grounded
+    cleaned = []
+    for ev in by_ref.values():
+        ev = dict(ev)
+        ev.pop("_grounded", None)
+        cleaned.append(ev)
+    return cleaned
 
 
 def _shelter_by_id(sid, shelters):
@@ -125,7 +193,7 @@ def validate(draft, ctx):
             by both pipeline.verify() (full Step 2 object) and app.py /edit
             (an outbound row with just "text").
         ctx: {"shelters": [...], "bulletins": [...], "sources": [...],
-            "sim_clock": "HH:MM"}
+            "sim_clock": "HH:MM", "entity_ids": [...] }
 
     Returns:
         (fixed_draft, flags). flags is empty on pass.
@@ -147,8 +215,10 @@ def validate(draft, ctx):
     # Timestamps on evidence come from the tables, never from the model:
     # a stale copy (e.g. from the rumor's previous evidence) must not make
     # expired data look current.
-    evidence = [_ground_evidence(e, shelters, bulletins)
-                for e in (fixed.get("evidence") or [])]
+    evidence = _normalize_evidence(
+        fixed.get("evidence") or [],
+        ctx.get("entity_ids") or fixed.get("entity_ids") or [],
+        shelters, bulletins)
     fixed["evidence"] = evidence
     verdict = fixed.get("verdict")
 
