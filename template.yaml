@@ -41,6 +41,7 @@ Resources:
           TABLE_RUMORS: !Ref RumorsTable
           TABLE_OUTBOUND: !Ref OutboundTable
           TABLE_SYSTEM: !Ref SystemTable
+          TABLE_ZONES: !Ref ZonesTable
           BEDROCK_MODEL_ID: !Ref BedrockModelId
       Policies:
         - DynamoDBCrudPolicy:
@@ -57,6 +58,8 @@ Resources:
             TableName: !Ref OutboundTable
         - DynamoDBCrudPolicy:
             TableName: !Ref SystemTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ZonesTable
         - Statement:
             - Effect: Allow
               Action:
@@ -106,6 +109,17 @@ Resources:
             ApiId: !Ref TrueSignalApi
             Path: /reset
             Method: POST
+
+  ZonesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
 
   SourcesTable:
     Type: AWS::DynamoDB::Table

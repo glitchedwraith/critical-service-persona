@@ -1,0 +1,58 @@
+[
+  {
+    "id": "SH-A",
+    "name": "Shelter A — Lincoln HS Gym",
+    "address": "123 Example Ave",
+    "zone": "A",
+    "lat": 37.344,
+    "lng": -121.8745,
+    "status": "open",
+    "capacity": 300,
+    "occupancy": 240,
+    "status_source_id": "SRC-EOC",
+    "status_updated_at": "04:10",
+    "status_expires_at": "05:10"
+  },
+  {
+    "id": "SH-B",
+    "name": "Shelter B — Market St Library",
+    "address": "200 Sample St",
+    "zone": "A",
+    "lat": 37.33,
+    "lng": -121.905,
+    "status": "closed",
+    "capacity": 150,
+    "occupancy": 0,
+    "status_source_id": "SRC-EOC",
+    "status_updated_at": "04:10",
+    "status_expires_at": "06:00"
+  },
+  {
+    "id": "SH-C",
+    "name": "Shelter C — Willow Glen Center",
+    "address": "789 Demo Blvd",
+    "zone": "C",
+    "lat": 37.295,
+    "lng": -121.885,
+    "status": "unknown",
+    "capacity": 200,
+    "occupancy": 0,
+    "status_source_id": "SRC-EOC",
+    "status_updated_at": "03:30",
+    "status_expires_at": "05:30"
+  },
+  {
+    "id": "SH-D",
+    "name": "Shelter D — Jefferson Rec Center",
+    "address": "456 Pine St",
+    "zone": "B",
+    "lat": 37.372,
+    "lng": -121.825,
+    "status": "open",
+    "capacity": 250,
+    "occupancy": 60,
+    "status_source_id": "SRC-MGR-D",
+    "status_updated_at": "04:15",
+    "status_expires_at": "06:00"
+  }
+]

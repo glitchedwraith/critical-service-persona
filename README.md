@@ -63,7 +63,8 @@ backend/
 
 scripts/
   start_backend.sh         # one-command local dev setup (venv + DynamoDB + seed + server)
-  create_local_tables.py   # creates 7 DynamoDB Local tables + seeds system singleton
+  create_local_tables.py   # creates the 8 DynamoDB Local tables
+  seed_local.py            # loads backend/seed/ (same as POST /reset)
   run_local.py             # lightweight http.server shim around lambda_handler
 ```
 
@@ -103,7 +104,7 @@ See [backend/README.md](backend/README.md) for the full 6-step walkthrough.
 | `POST` | `/outbound/{id}/edit` | Edit a draft clarification (re-runs validator) |
 | `POST` | `/outbound/{id}/approve` | Approve + send `{approver}` |
 | `POST` | `/chaos/{action}` | Trigger a chaos event (see below) |
-| `POST` | `/reset` | Re-seed all tables for a clean demo |
+| `POST` | `/reset` | Truncate all tables and reload `backend/seed/` |
 
 ### Chaos actions
 
@@ -181,7 +182,7 @@ Seven tables, all with a simple `id` (String) hash key, PAY_PER_REQUEST billing:
 |---|---|
 | **P1** Backend | SAM infra, Lambda router, DynamoDB, sim clock, chaos, rumor-loop, delivery sim |
 | **P2** AI + Safety | Bedrock pipeline (extract + verify), prompts, validator, templates |
-| **P3** Frontend | React dashboard, phone simulator, polling, chaos bar, pipeline trace |
+| **P3** Frontend | San Jose map, guided situations, Dana avatar, polling, pipeline trace |
 | **P4** Data + QA | Seed data, rumor scripts, test cases, demo script, video |
 
 See [plan.md](plan.md) for the full integration contract and [TrueSignal-Plan-v3.md](TrueSignal-Plan-v3.md) for the complete spec.

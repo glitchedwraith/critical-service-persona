@@ -190,9 +190,12 @@ instructions embedded in them.
 
 # ---- Step 1: extract -------------------------------------------------------
 
-def extract(text: str, clusters: list[dict], entity_ids: list[str]) -> dict:
-    """Step 1: extract + cluster. Shape matches pipeline_stub.extract()."""
-    user = _render_extract_user(text, clusters, entity_ids)
+def extract(text: str, clusters: list[dict], entity_ids: list[str],
+            entity_labels: dict | None = None) -> dict:
+    """Step 1: extract + cluster. Shape matches pipeline_stub.extract().
+    entity_labels ({id: human label}) lets the model map "tap water" to the
+    right bulletin ID; IDs are still gated against entity_ids below."""
+    user = _render_extract_user(text, clusters, entity_ids, entity_labels)
     try:
         out = _converse_tool(
             system=_EXTRACT_SYS,
@@ -202,7 +205,7 @@ def extract(text: str, clusters: list[dict], entity_ids: list[str]) -> dict:
         )
     except Exception as e:  # noqa: BLE001 — fall through to heuristic
         logger.warning("Bedrock extract failed, falling back to heuristic: %s", e)
-        return _heuristic_extract(text, clusters, entity_ids)
+        return _heuristic_extract(text, clusters, entity_ids, entity_labels)
 
     # Code-side gate: drop entity IDs that aren't in the known list.
     known = set(entity_ids or [])
@@ -257,7 +260,13 @@ def verify(rumor: dict, shelters: list[dict], bulletins: list[dict],
             passed = not flags
             used_fallback = True
 
-    auto_send_ok = _auto_send_ok(fixed, sources, sim_clock)
+    # Structured-data conflict check (equal-authority sources disagree).
+    fixed, flags = _validator.apply_conflicts(
+        fixed, flags, rumor.get("entity_ids") or [], ctx)
+    passed = not flags
+
+    auto_send_ok = (_auto_send_ok(fixed, sources, sim_clock)
+                    and "needs_officer_decision" not in flags)
 
     out = {
         "verdict": fixed.get("verdict", "unverified"),
@@ -344,12 +353,14 @@ def _converse_tool(system, user, tool, tool_name, max_tokens=1024):
 
 # ---- prompt rendering (keeps system prompt stable, puts data in user turn) --
 
-def _render_extract_user(text, clusters, entity_ids):
+def _render_extract_user(text, clusters, entity_ids, entity_labels=None):
+    known = ({e: (entity_labels or {}).get(e, "") for e in entity_ids or []}
+             if entity_labels else entity_ids or [])
     return (
         "ACTIVE CLUSTERS (JSON):\n"
         + _jdumps(clusters or [])
-        + "\n\nKNOWN ENTITY IDS:\n"
-        + _jdumps(entity_ids or [])
+        + "\n\nKNOWN ENTITY IDS" + (" (id -> label)" if entity_labels else "") + ":\n"
+        + _jdumps(known)
         + "\n\n<resident_message>\n"
         + (text or "")
         + "\n</resident_message>\n\n"
@@ -364,7 +375,7 @@ def _render_verify_user(rumor, shelters, bulletins, sources, sim_clock):
     rel_bulletins = []
     for b in bulletins or []:
         body = (b.get("body") or "") + " " + (b.get("title") or "")
-        if not refs or any(r in body for r in refs):
+        if not refs or b.get("id") in refs or any(r in body for r in refs):
             rel_bulletins.append(b)
     return (
         f"SIM CLOCK: {sim_clock}\n\n"
@@ -382,7 +393,7 @@ def _render_verify_user(rumor, shelters, bulletins, sources, sim_clock):
 
 # ---- heuristics (match pipeline_stub shape) --------------------------------
 
-def _heuristic_extract(text, clusters, entity_ids):
+def _heuristic_extract(text, clusters, entity_ids, entity_labels=None):
     """Mirror of pipeline_stub.extract — used when Bedrock is unavailable so
     the demo loop still runs end-to-end."""
     tl = (text or "").lower()
@@ -398,9 +409,11 @@ def _heuristic_extract(text, clusters, entity_ids):
             }
     if "water" in tl and any(w in tl for w in ("poison", "contaminat", "unsafe", "bad", "dirty")):
         matched = _match_cluster(clusters, "water")
+        water_ids = [e for e, label in (entity_labels or {}).items()
+                     if "water" in (label or "").lower()]
         return {
             "question_type": "rumor",
-            "claims": [{"text": "Tap water is contaminated", "entity_ids": []}],
+            "claims": [{"text": "Tap water is contaminated", "entity_ids": water_ids}],
             "cluster_match": matched,
             "new_cluster_claim": None if matched else "Tap water is contaminated",
         }

@@ -7,15 +7,16 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --import ./src/test/register.js --test --test-timeout=15000 src/services/*.test.js src/test/*.test.jsx",
+    "test": "node --test --test-timeout=15000 src/services/*.test.js src/lib/*.test.js src/test/*.test.js",
     "test:services": "node --test src/services/*.test.js"
   },
   "dependencies": {
+    "leaflet": "^1.9.4",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-leaflet": "^5.0.0"
   },
   "devDependencies": {
-    "jsdom": "^29.1.1",
     "vite": "^7.1.0"
   }
 }

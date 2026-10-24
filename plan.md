@@ -55,6 +55,8 @@ Exactly the schemas in v3 §3: `sources`, `bulletins`, `shelters`, `messages`, `
 
 Chaos actions: `city_site_down`, `rumor_wave`, `shelter_a_full`, `conflicting_report`, `advance_clock` (`{minutes: 45}`), `expire_bulletin` (`{id}`).
 
+> **Added on `feature/integration`:** an 8th `zones` table, data-driven chaos actions (`situation`, `run_script`, `shelter_status`, `conflict_report`, `officer_decision`, …) and `/state` fields `zones`, `sources`, `situations`. P4's seed package lives at `backend/seed/` so it ships inside the Lambda. Details: [INTEGRATION-PLAN.md §8](INTEGRATION-PLAN.md).
+
 ### 3.3 `/state` response shape
 ```json
 {

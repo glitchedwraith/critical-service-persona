@@ -37,36 +37,7 @@ fi
 echo "Creating tables + seeding data ..."
 "$VENV/bin/python" scripts/create_local_tables.py
 
-"$VENV/bin/python" - <<'PY'
-import boto3, os
-os.environ.setdefault('AWS_ACCESS_KEY_ID','x')
-os.environ.setdefault('AWS_SECRET_ACCESS_KEY','x')
-r = boto3.resource('dynamodb', endpoint_url='http://localhost:8000', region_name='us-east-1')
-seeds = {
-    'truesignal-local-sources': [
-        {'id':'SRC-EOC','name':'City EOC','authority':1},
-        {'id':'SRC-MGR-A','name':'Shelter A manager','authority':2},
-        {'id':'SRC-MGR-D','name':'Shelter D manager','authority':2},
-    ],
-    'truesignal-local-shelters': [
-        {'id':'SH-A','name':'Shelter A — Lincoln HS Gym','address':'123 Example Ave',
-         'status':'open','capacity':300,'occupancy':240,
-         'status_source_id':'SRC-EOC','status_updated_at':'04:10','status_expires_at':'05:10'},
-        {'id':'SH-D','name':'Shelter D — Jefferson Rec Center','address':'456 Pine St',
-         'status':'open','capacity':250,'occupancy':60,
-         'status_source_id':'SRC-EOC','status_updated_at':'04:10','status_expires_at':'06:00'},
-    ],
-    'truesignal-local-bulletins': [
-        {'id':'B-001','source_id':'SRC-EOC','title':'Shelters open',
-         'body':'Shelters A (SH-A, 123 Example Ave) and D (SH-D, 456 Pine St) are open.',
-         'published_at':'04:00','last_verified_at':'04:10','expires_at':'06:00','status':'active'},
-    ],
-}
-for tbl, items in seeds.items():
-    t = r.Table(tbl)
-    for it in items: t.put_item(Item=it)
-    print(f'  seeded {tbl}: {len(items)}')
-PY
+"$VENV/bin/python" scripts/seed_local.py
 
 # 5. Start the backend
 echo ""

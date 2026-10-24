@@ -19,7 +19,7 @@ import json
 import os
 import re
 import sys
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # Defaults for local dev
 os.environ.setdefault("DYNAMODB_ENDPOINT", "http://localhost:8000")
@@ -33,6 +33,7 @@ for name, default in [
     ("TABLE_RUMORS", "truesignal-local-rumors"),
     ("TABLE_OUTBOUND", "truesignal-local-outbound"),
     ("TABLE_SYSTEM", "truesignal-local-system"),
+    ("TABLE_ZONES", "truesignal-local-zones"),
 ]:
     os.environ.setdefault(name, default)
 
@@ -109,7 +110,8 @@ def main():
     print(f"TrueSignal local backend on http://localhost:{port}", flush=True)
     print(f"  model: {os.environ['BEDROCK_MODEL_ID']}", flush=True)
     print(f"  dynamodb: {os.environ['DYNAMODB_ENDPOINT']}", flush=True)
-    HTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    # Threaded so GET /state keeps answering while a long scenario runs.
+    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
 
 
 if __name__ == "__main__":

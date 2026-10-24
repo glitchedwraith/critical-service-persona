@@ -1,0 +1,20 @@
+[
+  {"id": "B-001", "source_id": "SRC-EOC", "title": "Shelters open",
+   "body": "Shelters A (SH-A, 123 Example Ave) and D (SH-D, 456 Pine St) are open. Shelter B (SH-B) is closed due to damage.",
+   "published_at": "04:00", "last_verified_at": "04:10", "expires_at": "06:00", "status": "active"},
+  {"id": "B-002", "source_id": "SRC-EOC", "title": "Tap water is safe",
+   "body": "No boil-water advisory is in effect. Tap water is safe to drink per utility testing.",
+   "published_at": "03:50", "last_verified_at": "04:05", "expires_at": "06:00", "status": "active"},
+  {"id": "B-003", "source_id": "SRC-EOC", "title": "Road closures",
+   "body": "Hwy 87 northbound is closed at Julian St. Use 1st St instead.",
+   "published_at": "03:40", "last_verified_at": "04:00", "expires_at": "07:00", "status": "active"},
+  {"id": "B-004", "source_id": "SRC-EOC", "title": "How to reach TrueSignal",
+   "body": "Text your question to the city emergency line. Answers cite official sources and times.",
+   "published_at": "03:30", "last_verified_at": "04:00", "expires_at": "08:00", "status": "active"},
+  {"id": "B-005", "source_id": "SRC-EOC", "title": "Power outage",
+   "body": "Power is out in the East Side (Zone B). Restoration is estimated for 08:00.",
+   "published_at": "03:45", "last_verified_at": "04:05", "expires_at": "06:30", "status": "active"},
+  {"id": "B-006", "source_id": "SRC-EOC", "title": "Old shelter list",
+   "body": "Shelters A, B and C are open.",
+   "published_at": "02:30", "last_verified_at": "02:30", "expires_at": "04:00", "status": "superseded"}
+]

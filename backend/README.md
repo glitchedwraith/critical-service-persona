@@ -65,49 +65,21 @@ docker run -d --name dynamodb-local --network truesignal-net \
 
 To stop later: `docker stop dynamodb-local && docker rm dynamodb-local`.
 
-### 3. Create the 7 tables + seed the system singleton
+### 3. Create the 8 tables
 
 ```sh
 /tmp/truesignal-venv/bin/python scripts/create_local_tables.py
 ```
 
-Idempotent. Seeds `system/singleton` with `sim_clock=04:30`, so `clock.now()` works immediately. Does **not** seed shelters / bulletins / sources — that's P4's data (step 4 below is a stop-gap).
+Idempotent. Creates `sources, bulletins, shelters, zones, messages, rumors, outbound, system`.
 
-### 4. (Interim, until P4's seed lands) Seed shelters + bulletins + sources
-
-Bedrock needs grounded data to answer against. Paste this into a shell:
+### 4. Load P4's seed data
 
 ```sh
-/tmp/truesignal-venv/bin/python - <<'PY'
-import boto3, os
-os.environ.setdefault('AWS_ACCESS_KEY_ID','x'); os.environ.setdefault('AWS_SECRET_ACCESS_KEY','x')
-r = boto3.resource('dynamodb', endpoint_url='http://localhost:8000', region_name='us-east-1')
-seeds = {
-    'truesignal-local-sources': [
-        {'id':'SRC-EOC','name':'City EOC','authority':1},
-        {'id':'SRC-MGR-A','name':'Shelter A manager','authority':2},
-        {'id':'SRC-MGR-D','name':'Shelter D manager','authority':2},
-    ],
-    'truesignal-local-shelters': [
-        {'id':'SH-A','name':'Shelter A — Lincoln HS Gym','address':'123 Example Ave',
-         'status':'open','capacity':300,'occupancy':240,
-         'status_source_id':'SRC-EOC','status_updated_at':'04:10','status_expires_at':'05:10'},
-        {'id':'SH-D','name':'Shelter D — Jefferson Rec Center','address':'456 Pine St',
-         'status':'open','capacity':250,'occupancy':60,
-         'status_source_id':'SRC-EOC','status_updated_at':'04:10','status_expires_at':'06:00'},
-    ],
-    'truesignal-local-bulletins': [
-        {'id':'B-001','source_id':'SRC-EOC','title':'Shelters open',
-         'body':'Shelters A (SH-A, 123 Example Ave) and D (SH-D, 456 Pine St) are open.',
-         'published_at':'04:00','last_verified_at':'04:10','expires_at':'06:00','status':'active'},
-    ],
-}
-for tbl, items in seeds.items():
-    t = r.Table(tbl)
-    for it in items: t.put_item(Item=it)
-    print(f'seeded {tbl}: {len(items)}')
-PY
+/tmp/truesignal-venv/bin/python scripts/seed_local.py
 ```
+
+Truncates every table and loads [seed/data/](seed/data/) (6 sources, 3 San Jose zones, 4 shelters with coordinates, 6 bulletins). `POST /reset` does exactly the same thing, so a demo retake is one click. Resident-message scripts live in [seed/scripts/rumors.json](seed/scripts/rumors.json); the 14 guided situations in [seed/data/situations.json](seed/data/situations.json). The seed package lives under `backend/` so it ships inside the Lambda (`CodeUri: backend/`).
 
 ### 5. (Optional) Verify Bedrock creds before starting the server
 
@@ -141,7 +113,7 @@ Listens on `http://localhost:3000`. Routes match the deployed SAM API exactly. D
 # Current state (sim clock, tables, trace)
 curl -s http://localhost:3000/state | jq .
 
-# Re-seed system singleton (and P4's data when available)
+# Truncate all tables and reload P4 seed data
 curl -s -X POST http://localhost:3000/reset | jq .
 
 # Inbound SMS - creates/joins a rumor cluster, drafts an individual reply (real Bedrock)
@@ -174,13 +146,23 @@ curl -s -X POST http://localhost:3000/outbound/$DRAFT/approve \
 # Delivery sim: sent -> delivered after ~2 wall-seconds, promoted lazily on next /state
 sleep 3 && curl -s http://localhost:3000/state | jq '.outbound[] | {id, state, delivered_at}'
 
-# Chaos: six actions, each mutates state
-curl -s -X POST http://localhost:3000/chaos/city_site_down | jq .
-curl -s -X POST http://localhost:3000/chaos/rumor_wave | jq .
-curl -s -X POST http://localhost:3000/chaos/shelter_a_full | jq .
-curl -s -X POST http://localhost:3000/chaos/conflicting_report | jq .
-curl -s -X POST http://localhost:3000/chaos/advance_clock -H 'Content-Type: application/json' -d '{"minutes":45}' | jq .
-curl -s -X POST http://localhost:3000/chaos/expire_bulletin -H 'Content-Type: application/json' -d '{"id":"B-001"}' | jq .
+# Chaos: each action mutates state
+# Guided situations (what the UI's left rail calls). Runs every step server-side.
+curl -s -X POST http://localhost:3000/chaos/situation -d '{"id":"rumor_wave"}' | jq .
+
+# Individual actions
+curl -s -X POST http://localhost:3000/chaos/city_site -d '{"online":false}' | jq .     # omit body to toggle
+curl -s -X POST http://localhost:3000/chaos/run_script -d '{"script":"water_wave"}' | jq .
+curl -s -X POST http://localhost:3000/chaos/shelter_status -d '{"shelter_id":"SH-A","source_id":"SRC-MGR-A","status":"full"}' | jq .
+curl -s -X POST http://localhost:3000/chaos/conflict_report -d '{"shelter_id":"SH-D","source_id":"SRC-RC","status":"closed"}' | jq .
+curl -s -X POST http://localhost:3000/chaos/officer_decision -d '{"shelter_id":"SH-D","source_id":"SRC-MGR-D"}' | jq .
+curl -s -X POST http://localhost:3000/chaos/verify_entity -d '{"entity_id":"SH-D"}' | jq .
+curl -s -X POST http://localhost:3000/chaos/delivery_fail -d '{"on":true}' | jq .
+curl -s -X POST http://localhost:3000/chaos/advance_clock -d '{"minutes":45}' | jq .
+curl -s -X POST http://localhost:3000/chaos/expire_bulletin -d '{"id":"B-001"}' | jq .
+curl -s -X POST http://localhost:3000/chaos/expire_shelter -d '{"id":"SH-A"}' | jq .
+curl -s -X POST http://localhost:3000/chaos/reverify_open | jq .
+# v3 names still work: city_site_down, rumor_wave, shelter_a_full, conflicting_report
 ```
 
 ---

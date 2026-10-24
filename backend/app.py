@@ -2,6 +2,7 @@
 
 Route contract: plan.md §3.2. State response shape: plan.md §3.3.
 """
+import hashlib
 import json
 import time
 from decimal import Decimal
@@ -9,6 +10,7 @@ from decimal import Decimal
 import clock
 import db
 import pipeline  # real Bedrock pipeline (falls back to heuristics if offline)
+import templates
 import validator  # real validator (plan.md §5 rules)
 
 
@@ -51,6 +53,9 @@ def _handle_state(_path, _body):
         reverse=True,
     )
     trace = list(reversed(system.get("trace") or []))[:50]
+    from seed import seed as seed_mod  # lazy; P4 data bundled in the Lambda
+    situations = [{k: s[k] for k in ("id", "title", "narration")}
+                  for s in seed_mod.situations()]
 
     return _respond(200, {
         "system": {
@@ -58,7 +63,14 @@ def _handle_state(_path, _body):
             "city_site_online": system.get("city_site_online"),
             "approver": system.get("approver"),
             "cache_as_of": system.get("cache_as_of"),
+            "delivery_fail_mode": bool(system.get("delivery_fail_mode")),
+            "active_situation": system.get("active_situation"),
+            "situations_done": system.get("situations_done") or [],
+            "demo_phone": system.get("demo_phone"),
         },
+        "zones": sorted(db.scan("TABLE_ZONES"), key=lambda z: z["id"]),
+        "sources": db.scan("TABLE_SOURCES"),
+        "situations": situations,
         "messages": messages,
         "rumors": rumors,
         "outbound": outbound,
@@ -113,9 +125,10 @@ def _promote_delivered():
         if sent_wall is None:
             continue
         if (now_wall - float(sent_wall)) >= DELIVERY_DELAY_SEC:
+            failed = bool(o.get("fail_on_delivery"))
             db.update("TABLE_OUTBOUND", o["id"], {
-                "state": "delivered",
-                "delivered_at": clock.now(),
+                "state": "failed" if failed else "delivered",
+                "delivered_at": None if failed else clock.now(),
             })
 
 
@@ -135,6 +148,7 @@ def _handle_inbound(_path, body):
 
     now = clock.now()
     msg_id = _next_id("M")
+    lat, lng = _place_message(msg_id, body)
     message = {
         "id": msg_id,
         "from": body["from"],
@@ -145,6 +159,8 @@ def _handle_inbound(_path, body):
         "claims": [],
         "cluster_id": None,
         "reply_id": None,
+        "lat": lat,
+        "lng": lng,
     }
     db.put("TABLE_MESSAGES", message)
 
@@ -154,11 +170,16 @@ def _handle_inbound(_path, body):
     sources = db.scan("TABLE_SOURCES")
     active_clusters = [{"id": r["id"], "claim": r.get("claim", "")}
                        for r in rumors if r.get("status") != "resolved"]
-    entity_ids = [s["id"] for s in shelters]
+    # Bulletins are entities too, so non-shelter rumors (water) can be grounded.
+    entity_labels = {s["id"]: s.get("name", "") for s in shelters}
+    entity_labels.update({b["id"]: b.get("title", "") for b in bulletins
+                          if b.get("status") == "active"})
+    entity_ids = list(entity_labels)
 
     # Step 1
     t0 = time.time()
-    step1 = pipeline.extract(body["text"], active_clusters, entity_ids)
+    step1 = pipeline.extract(body["text"], active_clusters, entity_ids,
+                             entity_labels=entity_labels)
     step1_ms = int((time.time() - t0) * 1000)
 
     cluster_id, emerging_fired = _apply_clustering(step1, now)
@@ -181,7 +202,7 @@ def _handle_inbound(_path, body):
     if step1.get("question_type") in ("status_question", "rumor"):
         reply = _draft_individual_reply(
             msg_id, body["from"], cluster_id, now,
-            shelters, bulletins, sources,
+            shelters, bulletins, sources, step1,
         )
         if reply:
             msg_updates["reply_id"] = reply["id"]
@@ -258,9 +279,17 @@ def _bump_rate(rumor, now_str):
     return rate
 
 
-def _draft_individual_reply(msg_id, to, cluster_id, now, shelters, bulletins, sources):
+def _draft_individual_reply(msg_id, to, cluster_id, now, shelters, bulletins,
+                            sources, step1=None):
     """Run pipeline.verify for the individual response. Auto-send or holding reply."""
-    rumor = db.get("TABLE_RUMORS", cluster_id) if cluster_id else {}
+    rumor = db.get("TABLE_RUMORS", cluster_id) if cluster_id else None
+    if not rumor:
+        # Plain status question: verify the question's own claims.
+        claims = (step1 or {}).get("claims") or []
+        rumor = {
+            "claim": "; ".join(c.get("text", "") for c in claims),
+            "entity_ids": sorted({e for c in claims for e in c.get("entity_ids") or []}),
+        }
 
     t0 = time.time()
     result = pipeline.verify(rumor or {}, shelters, bulletins, sources, now)
@@ -271,10 +300,11 @@ def _draft_individual_reply(msg_id, to, cluster_id, now, shelters, bulletins, so
     auto_ok = bool(result.get("auto_send_ok"))
 
     outbound_id = _next_id("O")
+    system = db.get("TABLE_SYSTEM", clock.SYSTEM_ID) or {}
     if passed and auto_ok:
         text = result.get("reply_text") or ""
     else:
-        text = f"We're checking. Last official update: {now} (City EOC)."
+        text = templates.holding_reply(system.get("cache_as_of") or now)
 
     outbound = {
         "id": outbound_id,
@@ -287,6 +317,7 @@ def _draft_individual_reply(msg_id, to, cluster_id, now, shelters, bulletins, so
         "state": "sent",
         "created_at": now,
         "sent_at_wall": int(time.time()),
+        "fail_on_delivery": bool(system.get("delivery_fail_mode")),
         "approved_by": None,
         "approved_at": None,
         "message_id": msg_id,
@@ -317,11 +348,15 @@ def _verify_rumor(rumor_id, trigger_msg_id=None):
     result = pipeline.verify(rumor, shelters, bulletins, sources, now)
     ms = int((time.time() - t0) * 1000)
 
-    outbound_id = _next_id("O")
+    # Re-verifying replaces the pending draft instead of stacking a new one.
+    prev = (db.get("TABLE_OUTBOUND", rumor["clarification_id"])
+            if rumor.get("clarification_id") else None)
+    outbound_id = (prev["id"] if prev and prev.get("state") == "draft"
+                   else _next_id("O"))
     outbound = {
         "id": outbound_id,
         "kind": "clarification",
-        "to": "zone:all",
+        "to": _target_zones(rumor_id),
         "lang": "en",
         "text": result.get("clarification_text") or "",
         "source_ids": [e["source_id"] for e in result.get("evidence") or []],
@@ -344,6 +379,8 @@ def _verify_rumor(rumor_id, trigger_msg_id=None):
         "clarification_id": outbound_id,
         "emerging": True,
         "status": "drafted",
+        "outdated": False,
+        "evidence_expired": False,
         "validator": {
             "passed": bool(validator_meta.get("passed")),
             "flags": validator_meta.get("flags") or [],
@@ -359,6 +396,28 @@ def _verify_rumor(rumor_id, trigger_msg_id=None):
                   detail=f"flags={validator_meta.get('flags') or []}",
                   ms=0, message_id=trigger_msg_id)
     return db.get("TABLE_RUMORS", rumor_id), outbound
+
+
+def _target_zones(rumor_id):
+    """'zone:A,B' — the zones whose residents texted about this rumor."""
+    zones = sorted({m.get("zone") for m in db.scan("TABLE_MESSAGES")
+                    if m.get("cluster_id") == rumor_id and m.get("zone")})
+    return "zone:" + (",".join(zones) or "all")
+
+
+def _place_message(msg_id, body):
+    """Map position for a message: explicit lat/lng, else the zone centroid
+    plus a small deterministic jitter (keeps geo logic out of the UI)."""
+    if body.get("lat") is not None and body.get("lng") is not None:
+        return Decimal(str(body["lat"])), Decimal(str(body["lng"]))
+    zone = db.get("TABLE_ZONES", body.get("zone") or "")
+    if not zone or not zone.get("centroid"):
+        return None, None
+    h = hashlib.sha1(msg_id.encode()).digest()
+    dlat = (h[0] / 255 - 0.5) * 0.012
+    dlng = (h[1] / 255 - 0.5) * 0.016
+    lat, lng = (float(x) for x in zone["centroid"])
+    return Decimal(str(round(lat + dlat, 5))), Decimal(str(round(lng + dlng, 5)))
 
 
 def _max_expires(evidence):
@@ -438,11 +497,13 @@ def _handle_approve(path, body):
         })
 
     now = clock.now()
+    system = db.get("TABLE_SYSTEM", clock.SYSTEM_ID) or {}
     db.update("TABLE_OUTBOUND", outbound_id, {
         "state": "sent",
         "approved_by": body["approver"],
         "approved_at": now,
         "sent_at_wall": int(time.time()),
+        "fail_on_delivery": bool(system.get("delivery_fail_mode")),
     })
 
     rumor_id = outbound.get("rumor_id")
@@ -477,25 +538,10 @@ def _handle_chaos(path, body):
 # ---- POST /reset -----------------------------------------------------------
 
 def _handle_reset(_path, _body):
-    seed_error = None
-    try:
-        from seed import seed as seed_mod  # P4's module; may not exist yet
-        seed_mod.seed()
-    except (ImportError, AttributeError) as e:
-        seed_error = f"{type(e).__name__}: {e}"
-    db.put("TABLE_SYSTEM", {
-        "id": clock.SYSTEM_ID,
-        "sim_clock": "04:30",
-        "city_site_online": True,
-        "approver": "Dana",
-        "cache_as_of": "04:10",
-        "trace": [],
-    })
-    return _respond(200, {
-        "ok": True,
-        "seed_imported": seed_error is None,
-        "seed_error": seed_error,
-    })
+    """Truncate every table and reload P4's seed data (backend/seed/)."""
+    from seed import seed as seed_mod
+    counts = seed_mod.seed(clear=True)
+    return _respond(200, {"ok": True, "seed_imported": True, "counts": counts})
 
 
 # ---- shared helpers --------------------------------------------------------

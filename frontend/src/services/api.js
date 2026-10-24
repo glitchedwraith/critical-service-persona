@@ -1,4 +1,4 @@
-const base = (import.meta.env?.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/$/, '');
+const base = (import.meta.env?.VITE_API_BASE_URL || 'http://localhost:3000').replace(/\/$/, '');
 async function request(path, body, signal) {
   let response;
   try {

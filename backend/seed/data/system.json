@@ -1,0 +1,10 @@
+{
+  "id": "singleton",
+  "sim_clock": "04:30",
+  "city_site_online": true,
+  "approver": "Dana",
+  "cache_as_of": "04:10",
+  "delivery_fail_mode": false,
+  "trace": [],
+  "demo_phone": "+1-555-0199"
+}
