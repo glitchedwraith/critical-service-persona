@@ -7,7 +7,7 @@ expects. DynamoDB Local via Docker, Bedrock calls hit real AWS.
 
 Usage:
     source .env                # exports AWS creds + bearer token
-    /tmp/truesignal-venv/bin/python scripts/run_local.py
+    .venv/bin/python scripts/run_local.py
     # listens on http://localhost:3000, same URLs as the deployed API
 
 Required env vars (loaded from .env + a few defaults below):
@@ -19,7 +19,7 @@ import json
 import os
 import re
 import sys
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # Defaults for local dev
 os.environ.setdefault("DYNAMODB_ENDPOINT", "http://localhost:8000")
@@ -33,6 +33,7 @@ for name, default in [
     ("TABLE_RUMORS", "truesignal-local-rumors"),
     ("TABLE_OUTBOUND", "truesignal-local-outbound"),
     ("TABLE_SYSTEM", "truesignal-local-system"),
+    ("TABLE_ZONES", "truesignal-local-zones"),
 ]:
     os.environ.setdefault(name, default)
 
@@ -71,7 +72,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         length = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(length).decode("utf-8") if length else None
-        event = {"routeKey": routeKey, "body": body, "pathParameters": path_params}
+        event = {"routeKey": routeKey, "body": body, "pathParameters": path_params,
+                 "headers": dict(self.headers.items())}
         resp = app.lambda_handler(event, None)
         self._send_raw(resp.get("statusCode", 200), resp.get("body") or "", resp.get("headers") or {})
 
@@ -85,20 +87,23 @@ class Handler(BaseHTTPRequestHandler):
         self._send_raw(204, "", {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Headers": "Content-Type, X-Session-Id, X-Replay",
         })
 
     def _send(self, status, obj):
         self._send_raw(status, json.dumps(obj), {"Content-Type": "application/json"})
 
     def _send_raw(self, status, body, headers):
-        self.send_response(status)
-        headers.setdefault("Access-Control-Allow-Origin", "*")
-        for k, v in headers.items():
-            self.send_header(k, v)
-        self.end_headers()
-        if body:
-            self.wfile.write(body.encode("utf-8") if isinstance(body, str) else body)
+        try:
+            self.send_response(status)
+            headers.setdefault("Access-Control-Allow-Origin", "*")
+            for k, v in headers.items():
+                self.send_header(k, v)
+            self.end_headers()
+            if body:
+                self.wfile.write(body.encode("utf-8") if isinstance(body, str) else body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # browser tab closed mid-poll
 
     def log_message(self, fmt, *args):
         sys.stderr.write(f"{self.command} {self.path} -> {args[1] if len(args) > 1 else '?'}\n")
@@ -109,7 +114,11 @@ def main():
     print(f"TrueSignal local backend on http://localhost:{port}", flush=True)
     print(f"  model: {os.environ['BEDROCK_MODEL_ID']}", flush=True)
     print(f"  dynamodb: {os.environ['DYNAMODB_ENDPOINT']}", flush=True)
-    HTTPServer(("127.0.0.1", port), Handler).serve_forever()
+    import sessions
+    print(f"  sessions: {'per visitor' if sessions.ENABLED else 'off (shared)'}", flush=True)
+    sessions.start_sweeper()
+    # Threaded so GET /state keeps answering while a long scenario runs.
+    ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
 
 
 if __name__ == "__main__":

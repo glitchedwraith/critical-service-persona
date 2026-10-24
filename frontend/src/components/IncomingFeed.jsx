@@ -1,5 +1,0 @@
-import { Badge, PanelHeading } from './shared.jsx';
-export default function IncomingFeed({ messages }) {
- const items = [...messages].reverse().sort((a,b) => String(b.received_at || '').localeCompare(String(a.received_at || ''))).slice(0,50);
- return <section className="panel feed"><PanelHeading eyebrow="01 / LISTEN" title="Incoming feed" count={items.length}><span className="tiny-label">NEWEST FIRST ↓</span></PanelHeading><div className="panel-scroll feed-list">{!items.length && <p className="empty">No incoming messages yet.</p>}{items.map(m => <article className="feed-item" key={m.id}><div className="item-meta"><Badge>Zone {m.zone || '—'}</Badge><span>{m.received_at || '—'}</span></div><p>{m.text}</p><div className="sender">{m.from || 'Unknown sender'} <span>· {m.role || 'resident'}</span></div>{m.cluster_id && <div className="cluster">↳ {m.cluster_id} <span>Linked to rumor</span></div>}</article>)}</div><div className="panel-footer"><span className="live-dot"/> {messages.length} messages received · showing latest 50</div></section>;
-}

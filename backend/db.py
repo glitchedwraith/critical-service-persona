@@ -4,25 +4,59 @@ Honours DYNAMODB_ENDPOINT for local dev (DynamoDB Local). Table names are
 resolved from env vars (TABLE_SOURCES, TABLE_BULLETINS, ...) set by SAM.
 All tables use `id` (string) as the single hash key per plan.md §3.
 """
+import contextlib
+import contextvars
 import os
 import boto3
 from boto3.dynamodb.conditions import Attr
 
 _resource = None
 
+# Active demo session (sessions.py). None = the shared, unsuffixed tables.
+_session = contextvars.ContextVar("truesignal_session", default=None)
+
 
 def _dynamodb():
     global _resource
     if _resource is None:
         endpoint = os.environ.get("DYNAMODB_ENDPOINT")
-        kwargs = {"endpoint_url": endpoint} if endpoint else {}
+        # DynamoDB Local ignores credentials; dummy ones keep the database
+        # working even when the Bedrock credentials are missing or expired.
+        kwargs = ({"endpoint_url": endpoint, "aws_access_key_id": "local",
+                   "aws_secret_access_key": "local"}
+                  if endpoint else {})
+        # boto3 only reads AWS_DEFAULT_REGION; honour AWS_REGION too.
+        region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION")
+        if region:
+            kwargs["region_name"] = region
         _resource = boto3.resource("dynamodb", **kwargs)
     return _resource
 
 
+def table_name(name_env, session=None):
+    """Physical table name: the env-var value, suffixed per demo session."""
+    sid = session if session is not None else _session.get()
+    base = os.environ[name_env]
+    return f"{base}-s-{sid}" if sid else base
+
+
 def table(name_env):
     """Resolve a table handle from an env-var name (e.g. 'TABLE_SOURCES')."""
-    return _dynamodb().Table(os.environ[name_env])
+    return _dynamodb().Table(table_name(name_env))
+
+
+def current_session():
+    return _session.get()
+
+
+@contextlib.contextmanager
+def session_scope(sid):
+    """Route every table() call in this block to session `sid`'s tables."""
+    token = _session.set(sid)
+    try:
+        yield
+    finally:
+        _session.reset(token)
 
 
 def get(name_env, item_id):
@@ -88,4 +122,4 @@ def append(name_env, item_id, field, value, max_len=None):
     return update(name_env, item_id, {field: lst})
 
 
-__all__ = ["table", "get", "put", "scan", "update", "append", "Attr"]
+__all__ = ["table", "table_name", "current_session", "session_scope", "get", "put", "scan", "update", "append", "Attr"]

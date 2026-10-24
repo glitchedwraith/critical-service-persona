@@ -40,3 +40,15 @@ test('all POST endpoints use the contract and preserve abort errors',async()=>{
   globalThis.fetch=async()=>{throw new DOMException('Cancelled','AbortError');};await assert.rejects(api.state(),{name:'AbortError'});
  }finally{globalThis.fetch=original;}
 });
+
+test('API sends a stable per-browser session id and the replay flag only when asked',async()=>{
+ const original=globalThis.fetch;const calls=[];const store={};
+ globalThis.localStorage={getItem:k=>store[k]??null,setItem:(k,v)=>{store[k]=v;}};
+ try {
+  globalThis.fetch=async(url,options)=>{calls.push(options);return new Response('{"ok":true}');};
+  await api.state();await api.act('reset',{},undefined,{replay:true});
+  const [a,b]=calls.map(c=>c.headers);
+  assert.match(a['X-Session-Id'],/^[a-z0-9]{8,32}$/);assert.equal(a['X-Session-Id'],b['X-Session-Id']);
+  assert.equal(a['X-Replay'],undefined);assert.equal(b['X-Replay'],'1');
+ }finally{globalThis.fetch=original;delete globalThis.localStorage;}
+});

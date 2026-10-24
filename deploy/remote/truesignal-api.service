@@ -1,0 +1,27 @@
+[Unit]
+Description=TrueSignal API (scripts/run_local.py behind nginx)
+Requires=dynamodb-local.service
+After=dynamodb-local.service network-online.target
+PartOf=dynamodb-local.service
+
+[Service]
+User=truesignal
+WorkingDirectory=/opt/truesignal
+Environment=PORT=3000
+Environment=DYNAMODB_ENDPOINT=http://127.0.0.1:8000
+Environment=AWS_REGION=us-east-1
+Environment=AWS_DEFAULT_REGION=us-east-1
+Environment=PYTHONUNBUFFERED=1
+# Bedrock credentials, written by deploy/push-creds.sh (root, 0600; systemd
+# reads it before dropping to the service user). Optional: without it the
+# API runs on the rule-based fallback and the UI shows "AI offline".
+EnvironmentFile=-/etc/truesignal/aws.env
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8000 && exit 0; sleep 1; done; exit 1'
+ExecStartPre=/opt/truesignal/.venv/bin/python scripts/create_local_tables.py
+ExecStartPre=/opt/truesignal/.venv/bin/python scripts/seed_local.py
+ExecStart=/opt/truesignal/.venv/bin/python scripts/run_local.py
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target

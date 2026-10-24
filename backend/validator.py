@@ -59,6 +59,25 @@ def _evidence_live(ev, sources, sim_clock, authority_cap=2):
     return authority <= authority_cap and _not_expired(ev.get("expires_at"), sim_clock)
 
 
+def _ground_evidence(ev, shelters, bulletins):
+    ev = dict(ev)
+    ref = ev.get("ref")
+    shelter = next((s for s in shelters or [] if s.get("id") == ref), None)
+    bulletin = next((b for b in bulletins or [] if b.get("id") == ref), None)
+    if shelter:
+        ev["source_id"] = shelter.get("status_source_id", ev.get("source_id"))
+        ev["published_at"] = shelter.get("status_updated_at")
+        ev["last_verified_at"] = shelter.get("status_updated_at")
+        ev["expires_at"] = shelter.get("status_expires_at")
+    elif bulletin:
+        ev["source_id"] = bulletin.get("source_id", ev.get("source_id"))
+        ev["published_at"] = bulletin.get("published_at")
+        ev["last_verified_at"] = bulletin.get("last_verified_at")
+        ev["expires_at"] = (None if bulletin.get("status") in ("expired", "superseded")
+                            else bulletin.get("expires_at"))
+    return ev
+
+
 def _shelter_by_id(sid, shelters):
     for s in shelters or []:
         if s.get("id") == sid:
@@ -125,7 +144,12 @@ def validate(draft, ctx):
         for s in shelters if s.get("address")
     }
 
-    evidence = list(fixed.get("evidence") or [])
+    # Timestamps on evidence come from the tables, never from the model:
+    # a stale copy (e.g. from the rumor's previous evidence) must not make
+    # expired data look current.
+    evidence = [_ground_evidence(e, shelters, bulletins)
+                for e in (fixed.get("evidence") or [])]
+    fixed["evidence"] = evidence
     verdict = fixed.get("verdict")
 
     # Collect text surfaces we'll check / rewrite.
@@ -172,7 +196,8 @@ def validate(draft, ctx):
 
     if all_expired:
         fixed["current_status_known"] = False
-        cant = templates.cant_confirm(sim_clock)
+        # Cite when official info was last updated, not the current clock.
+        cant = templates.cant_confirm(_best_evidence_hhmm(evidence) or sim_clock)
         for key in text_keys:
             fixed[key] = cant
         flags.append("all_evidence_expired")
@@ -198,7 +223,7 @@ def validate(draft, ctx):
     hhmm_for_append = _best_evidence_hhmm(evidence) or sim_clock
     for key in text_keys:
         txt = fixed.get(key) or ""
-        if txt:
+        if txt and not all_expired:  # the can't-confirm template carries its own time
             fixed[key] = _append_as_of(txt, hhmm_for_append)
 
     # ------- Rule: 300 char cap, add "reply MORE" -------
@@ -210,6 +235,30 @@ def validate(draft, ctx):
             # Not a reject — truncation is a mitigation, matches v3 §5 "Truncate"
 
     return fixed, flags
+
+
+def apply_conflicts(draft, flags, entity_ids, ctx):
+    """v3 §5 equal-authority rule, checked against structured rows.
+
+    A shelter row carrying `conflict` = {source_id, status} from a source with
+    the same authority as its `status_source_id` is a disagreement the system
+    must not settle silently: force unverified + the officer template."""
+    sources = ctx.get("sources") or []
+    sim_clock = ctx.get("sim_clock")
+    for s in ctx.get("shelters") or []:
+        c = s.get("conflict")
+        if s.get("id") not in (entity_ids or []) or not c:
+            continue
+        a = _source_authority(s.get("status_source_id"), sources)
+        b = _source_authority(c.get("source_id"), sources)
+        if a != b or c.get("status") == s.get("status"):
+            continue
+        fixed = dict(draft, verdict="unverified", current_status_known=False)
+        for key in ("reply_text", "clarification_text", "text"):
+            if key in fixed:
+                fixed[key] = templates.needs_officer(sim_clock)
+        return fixed, list(flags) + ["needs_officer_decision"]
+    return draft, flags
 
 
 def _best_evidence_hhmm(evidence):

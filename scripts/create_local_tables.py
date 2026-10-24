@@ -34,6 +34,7 @@ TABLES = [
     "rumors",
     "outbound",
     "system",
+    "zones",
 ]
 
 
