@@ -25,6 +25,10 @@ def _dynamodb():
         kwargs = ({"endpoint_url": endpoint, "aws_access_key_id": "local",
                    "aws_secret_access_key": "local"}
                   if endpoint else {})
+        # boto3 only reads AWS_DEFAULT_REGION; honour AWS_REGION too.
+        region = os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION")
+        if region:
+            kwargs["region_name"] = region
         _resource = boto3.resource("dynamodb", **kwargs)
     return _resource
 

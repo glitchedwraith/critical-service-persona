@@ -9,6 +9,7 @@
 # They travel over SSH stdin — never as command-line args, never echoed — and
 # land in /etc/truesignal/aws.env (root, 0600), which truesignal-api.service
 # reads via EnvironmentFile=. Re-run whenever the workshop credentials rotate.
+# Never debug this with `bash -x`: the trace prints the credentials.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -42,10 +43,12 @@ echo "▸ Writing /etc/truesignal/aws.env on $HOST"
 {
   echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID"
   echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY"
-  [ -n "${AWS_SESSION_TOKEN:-}" ] && echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"
+  # if, not `[ … ] && echo`: a false test as the block's last command fails
+  # the whole pipeline under set -e / pipefail.
+  if [ -n "${AWS_SESSION_TOKEN:-}" ]; then echo "AWS_SESSION_TOKEN=$AWS_SESSION_TOKEN"; fi
   echo "AWS_REGION=us-east-1"
   echo "AWS_DEFAULT_REGION=us-east-1"
-  [ -n "${BEDROCK_MODEL_ID:-}" ] && echo "BEDROCK_MODEL_ID=$BEDROCK_MODEL_ID"
+  if [ -n "${BEDROCK_MODEL_ID:-}" ]; then echo "BEDROCK_MODEL_ID=$BEDROCK_MODEL_ID"; fi
 } | "${SSH[@]}" 'sudo install -d -m 700 -o root -g root /etc/truesignal \
   && sudo tee /etc/truesignal/aws.env >/dev/null \
   && sudo chmod 600 /etc/truesignal/aws.env'

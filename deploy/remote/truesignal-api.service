@@ -10,6 +10,7 @@ WorkingDirectory=/opt/truesignal
 Environment=PORT=3000
 Environment=DYNAMODB_ENDPOINT=http://127.0.0.1:8000
 Environment=AWS_REGION=us-east-1
+Environment=AWS_DEFAULT_REGION=us-east-1
 Environment=PYTHONUNBUFFERED=1
 # Bedrock credentials, written by deploy/push-creds.sh (root, 0600; systemd
 # reads it before dropping to the service user). Optional: without it the
