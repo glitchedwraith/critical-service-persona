@@ -226,13 +226,37 @@ def _verify_entity(body):
     emerging threshold (used when official sources change mid-incident)."""
     _require(body, "entity_id")
     import app  # lazy
+    entity_id = body["entity_id"]
+    matching = [
+        rumor for rumor in db.scan("TABLE_RUMORS")
+        if rumor.get("status") != "resolved"
+           and entity_id in (rumor.get("entity_ids") or [])
+    ]
+
+    # A correction in any of these states already represents this entity's
+    # incident. Do not create another outbound message for another rumor row.
+    active_states = {"draft", "sent", "delivered", "failed"}
+    active_rumor_ids = {
+        outbound.get("rumor_id")
+        for outbound in db.scan("TABLE_OUTBOUND")
+        if outbound.get("kind") == "clarification"
+           and outbound.get("state") in active_states
+           and outbound.get("rumor_id")
+    }
+    already_covered = any(r.get("id") in active_rumor_ids for r in matching)
     done = []
-    for rumor in db.scan("TABLE_RUMORS"):
-        if (rumor.get("status") != "resolved"
-                and body["entity_id"] in (rumor.get("entity_ids") or [])):
-            app._verify_rumor(rumor["id"])
-            done.append(rumor["id"])
-    return {"ok": True, "action": "verify_entity", "verified": done}
+    skipped = []
+    for rumor in matching:
+        if already_covered:
+            skipped.append(rumor["id"])
+            continue
+        app._verify_rumor(rumor["id"])
+        done.append(rumor["id"])
+        # The first verification creates a draft; subsequent rumor rows for
+        # the same entity must not create duplicate drafts.
+        already_covered = True
+    return {"ok": True, "action": "verify_entity",
+            "verified": done, "skipped_duplicates": skipped}
 
 
 def _reverify_open(_body):
@@ -252,6 +276,13 @@ def _situation(body):
     sit = next((s for s in seed_mod.situations() if s["id"] == body["id"]), None)
     if sit is None:
         raise ValueError(f"unknown situation: {body['id']!r}")
+
+    # check for repeats
+    system_before = db.get("TABLE_SYSTEM", clock.SYSTEM_ID) or {}
+    if sit["id"] in (system_before.get("situations_done") or []):
+        return {"ok": True, "action": "situation", "id": sit["id"],
+                "already_completed": True, "steps": []}
+
     active = {"id": sit["id"], "title": sit["title"],
               "narration": sit["narration"], "running": True}
     db.update("TABLE_SYSTEM", clock.SYSTEM_ID, {"active_situation": active})
