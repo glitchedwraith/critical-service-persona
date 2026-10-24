@@ -34,8 +34,8 @@ def _jdumps(obj):
         raise TypeError(f"not JSON-serializable: {type(o).__name__}")
     return json.dumps(obj, ensure_ascii=False, default=_default)
 
-import validator as _validator
-import templates
+from backend import validator as _validator
+from backend import templates
 
 
 logger = logging.getLogger(__name__)
