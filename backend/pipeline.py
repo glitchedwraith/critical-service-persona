@@ -34,6 +34,7 @@ def _jdumps(obj):
         raise TypeError(f"not JSON-serializable: {type(o).__name__}")
     return json.dumps(obj, ensure_ascii=False, default=_default)
 
+import ai_status
 import validator as _validator
 import templates
 
@@ -333,7 +334,23 @@ def _auto_send_ok(draft, sources, sim_clock):
 def _converse_tool(system, user, tool, tool_name, max_tokens=1024):
     """Call Bedrock Converse with toolChoice forcing one tool. Return parsed
     tool input dict. Raises on error so callers can fall back."""
-    resp = _bedrock().converse(
+    ai_status.begin(tool_name)
+    try:
+        resp = _converse_raw(system, user, tool, tool_name, max_tokens)
+    except Exception as e:
+        ai_status.record(False, e)
+        raise
+    ai_status.record(True)
+    for block in resp.get("output", {}).get("message", {}).get("content", []):
+        if "toolUse" in block:
+            tu = block["toolUse"]
+            if tu.get("name") == tool_name:
+                return tu.get("input") or {}
+    raise RuntimeError(f"Bedrock response missing toolUse for {tool_name}")
+
+
+def _converse_raw(system, user, tool, tool_name, max_tokens):
+    return _bedrock().converse(
         modelId=DEFAULT_MODEL_ID,
         system=[{"text": system}],
         messages=[{"role": "user", "content": [{"text": user}]}],
@@ -343,12 +360,6 @@ def _converse_tool(system, user, tool, tool_name, max_tokens=1024):
             "toolChoice": {"tool": {"name": tool_name}},
         },
     )
-    for block in resp.get("output", {}).get("message", {}).get("content", []):
-        if "toolUse" in block:
-            tu = block["toolUse"]
-            if tu.get("name") == tool_name:
-                return tu.get("input") or {}
-    raise RuntimeError(f"Bedrock response missing toolUse for {tool_name}")
 
 
 # ---- prompt rendering (keeps system prompt stable, puts data in user turn) --

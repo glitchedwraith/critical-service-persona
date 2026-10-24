@@ -15,7 +15,11 @@ def _dynamodb():
     global _resource
     if _resource is None:
         endpoint = os.environ.get("DYNAMODB_ENDPOINT")
-        kwargs = {"endpoint_url": endpoint} if endpoint else {}
+        # DynamoDB Local ignores credentials; dummy ones keep the database
+        # working even when the Bedrock credentials are missing or expired.
+        kwargs = ({"endpoint_url": endpoint, "aws_access_key_id": "local",
+                   "aws_secret_access_key": "local"}
+                  if endpoint else {})
         _resource = boto3.resource("dynamodb", **kwargs)
     return _resource
 

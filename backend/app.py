@@ -7,6 +7,7 @@ import json
 import time
 from decimal import Decimal
 
+import ai_status
 import clock
 import db
 import pipeline  # real Bedrock pipeline (falls back to heuristics if offline)
@@ -67,6 +68,7 @@ def _handle_state(_path, _body):
             "active_situation": system.get("active_situation"),
             "situations_done": system.get("situations_done") or [],
             "demo_phone": system.get("demo_phone"),
+            "ai": ai_status.status(),  # Bedrock credential health (additive)
         },
         "zones": sorted(db.scan("TABLE_ZONES"), key=lambda z: z["id"]),
         "sources": db.scan("TABLE_SOURCES"),
