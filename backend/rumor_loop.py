@@ -63,11 +63,9 @@ def _evaluate(rumor):
 def _flag_evidence_expired(rumor, now):
     if rumor.get("evidence_expired"):
         return
-    for e in (rumor.get("evidence") or []):
-        exp = e.get("expires_at")
-        if exp is not None and exp < now:
-            db.update("TABLE_RUMORS", rumor["id"], {"evidence_expired": True})
-            return
+    evidence = rumor.get("evidence") or []
+    if evidence and not any(clock.is_live(e.get("expires_at"), now) for e in evidence):
+        db.update("TABLE_RUMORS", rumor["id"], {"evidence_expired": True})
 
 
 def _draft_follow_up(rumor_id):

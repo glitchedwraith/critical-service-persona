@@ -38,6 +38,7 @@ def _jdumps(obj):
     return json.dumps(obj, ensure_ascii=False, default=_default)
 
 import ai_status
+import clock
 import validator as _validator
 import templates
 
@@ -254,10 +255,13 @@ def verify(rumor: dict, shelters: list[dict], bulletins: list[dict],
     ctx = {
         "shelters": shelters, "bulletins": bulletins,
         "sources": sources, "sim_clock": sim_clock,
+        "entity_ids": rumor.get("entity_ids") or [],
     }
     user = _render_verify_user(rumor, shelters, bulletins, sources, sim_clock)
 
     draft, latency_ms, used_fallback = _attempt_verify(user)
+    if isinstance(draft, dict):
+        draft.setdefault("entity_ids", ctx["entity_ids"])
 
     # Validate — regenerate once on reject, then fall back to template.
     fixed, flags = _validator.validate(draft, ctx)
@@ -266,6 +270,8 @@ def verify(rumor: dict, shelters: list[dict], bulletins: list[dict],
     if not passed and not used_fallback:
         logger.info("validator rejected draft (flags=%s); regenerating once", flags)
         draft2, _, _ = _attempt_verify(user, retry=True)
+        if isinstance(draft2, dict):
+            draft2.setdefault("entity_ids", ctx["entity_ids"])
         fixed2, flags2 = _validator.validate(draft2, ctx)
         if not flags2:
             fixed, flags, passed = fixed2, flags2, True
@@ -337,7 +343,8 @@ def _template_fallback(draft, ctx):
     return {
         "verdict": "unverified",
         "current_status_known": False,
-        "evidence": draft.get("evidence") or [],
+        "entity_ids": ctx.get("entity_ids") or (draft or {}).get("entity_ids") or [],
+        "evidence": (draft or {}).get("evidence") or [],
         "reply_text": txt,
         "clarification_text": txt,
     }
@@ -352,7 +359,7 @@ def _auto_send_ok(draft, sources, sim_clock):
         return False
     for ev in draft.get("evidence") or []:
         auth = _validator._source_authority(ev.get("source_id"), sources)
-        if auth <= 2 and _validator._not_expired(ev.get("expires_at"), sim_clock):
+        if auth <= 2 and clock.is_live(ev.get("expires_at"), sim_clock):
             return True
     return False
 

@@ -81,10 +81,13 @@ export function danaFocus(state) {
     };
   }
 
-  // 3. Something already sent is no longer true.
+  // 3. Something already sent is no longer true. Only offer Redraft when
+  // a new draft could actually change: facts moved (outdated) or official
+  // rows for this rumor are live again. Expired-with-nothing-live is the
+  // "can't confirm" watch state — Redraft would loop Approve → Redraft.
   for (const r of rumors) {
     if (r.status === 'resolved' && !r.outdated) continue;
-    if (r.outdated || r.evidence_expired) {
+    if (r.outdated || (r.evidence_expired && officialStillLive(state, r))) {
       const why = r.outdated ? 'the facts changed since I sent it' : 'its evidence expired';
       return {
         mood: 'alert', rumor: r, draft: null,
@@ -133,6 +136,18 @@ export function danaFocus(state) {
     mood: 'calm', rumor: null, draft: null, actions: [],
     line: 'All quiet. Official information is current.',
   };
+}
+
+function officialStillLive(state, rumor) {
+  const ids = new Set(rumor.entity_ids || []);
+  if ([...ids].some(id => (state.shelters || []).some(s => s.id === id && !s.expired))) {
+    return true;
+  }
+  return (state.bulletins || []).some(b => {
+    if (b.expired || b.status === 'superseded') return false;
+    const blob = `${b.id} ${b.title || ''} ${b.body || ''}`;
+    return [...ids].some(id => blob.includes(id));
+  });
 }
 
 const MOOD_RANK = { calm: 0, good: 1, informed: 2, alert: 3, critical: 4 };
