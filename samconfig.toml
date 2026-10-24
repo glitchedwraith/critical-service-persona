@@ -1,0 +1,24 @@
+version = 0.1
+
+[default.global.parameters]
+stack_name = "truesignal"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+region = "us-east-1"
+
+[prod.deploy.parameters]
+stack_name = "truesignal-prod"
+capabilities = "CAPABILITY_IAM"
+resolve_s3 = true
+region = "us-east-1"
+
+[default.local_start_api.parameters]
+env_vars = "env.json"
+docker_network = "truesignal-net"

@@ -1,0 +1,15 @@
+.aws-sam/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+env/
+.env
+env.local.json
+*.swp
+.DS_Store
+node_modules/
+dist/
+.vite/

@@ -1,0 +1,204 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: TrueSignal backend (P1) - emergency information continuity engine
+
+Parameters:
+  BedrockModelId:
+    Type: String
+    Default: us.anthropic.claude-haiku-4-5-20251001-v1:0
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: python3.12
+
+Resources:
+  TrueSignalApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - Content-Type
+
+  TrueSignalFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: backend/
+      Handler: app.lambda_handler
+      Environment:
+        Variables:
+          TABLE_SOURCES: !Ref SourcesTable
+          TABLE_BULLETINS: !Ref BulletinsTable
+          TABLE_SHELTERS: !Ref SheltersTable
+          TABLE_MESSAGES: !Ref MessagesTable
+          TABLE_RUMORS: !Ref RumorsTable
+          TABLE_OUTBOUND: !Ref OutboundTable
+          TABLE_SYSTEM: !Ref SystemTable
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SourcesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BulletinsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SheltersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MessagesTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RumorsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref OutboundTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref SystemTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - bedrock:InvokeModel
+                - bedrock:Converse
+              Resource: "*"
+      Events:
+        GetState:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrueSignalApi
+            Path: /state
+            Method: GET
+        SmsInbound:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrueSignalApi
+            Path: /sms/inbound
+            Method: POST
+        RumorVerify:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrueSignalApi
+            Path: /rumors/{id}/verify
+            Method: POST
+        OutboundEdit:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrueSignalApi
+            Path: /outbound/{id}/edit
+            Method: POST
+        OutboundApprove:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrueSignalApi
+            Path: /outbound/{id}/approve
+            Method: POST
+        Chaos:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrueSignalApi
+            Path: /chaos/{action}
+            Method: POST
+        Reset:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref TrueSignalApi
+            Path: /reset
+            Method: POST
+
+  SourcesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  BulletinsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  SheltersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  MessagesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  RumorsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  OutboundTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+  SystemTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+
+Outputs:
+  ApiUrl:
+    Description: Base URL for the HTTP API
+    Value: !Sub "https://${TrueSignalApi}.execute-api.${AWS::Region}.amazonaws.com"
+  SourcesTableName:
+    Value: !Ref SourcesTable
+  BulletinsTableName:
+    Value: !Ref BulletinsTable
+  SheltersTableName:
+    Value: !Ref SheltersTable
+  MessagesTableName:
+    Value: !Ref MessagesTable
+  RumorsTableName:
+    Value: !Ref RumorsTable
+  OutboundTableName:
+    Value: !Ref OutboundTable
+  SystemTableName:
+    Value: !Ref SystemTable

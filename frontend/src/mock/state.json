@@ -1,0 +1,820 @@
+{
+  "system": {
+    "sim_clock": "04:35",
+    "city_site_online": false,
+    "approver": "Dana",
+    "cache_as_of": "04:10"
+  },
+  "messages": [
+    {
+      "id": "M-001",
+      "from": "+1-555-0100",
+      "role": "volunteer",
+      "zone": "A",
+      "text": "Is Shelter A closed? My neighbor says they are turning everyone away.",
+      "received_at": "04:12",
+      "claims": [
+        "Shelter A has closed and is turning people away."
+      ],
+      "cluster_id": "R-001",
+      "reply_id": null
+    },
+    {
+      "id": "M-002",
+      "from": "+1-555-0102",
+      "role": "resident",
+      "zone": "B",
+      "text": "Someone says tap water is safe now. Is that true?",
+      "received_at": "04:13",
+      "claims": [
+        "Tap water is safe to drink without boiling."
+      ],
+      "cluster_id": "R-002",
+      "reply_id": null
+    },
+    {
+      "id": "M-003",
+      "from": "+1-555-0103",
+      "role": "resident",
+      "zone": "C",
+      "text": "Can we cross the East bridge?",
+      "received_at": "04:14",
+      "claims": [
+        "The East bridge has reopened to everyone."
+      ],
+      "cluster_id": "R-003",
+      "reply_id": null
+    },
+    {
+      "id": "M-004",
+      "from": "+1-555-0104",
+      "role": "resident",
+      "zone": "A",
+      "text": "Is North Community Hall still taking families?",
+      "received_at": "04:15",
+      "claims": [
+        "Shelter B is accepting residents."
+      ],
+      "cluster_id": "R-004",
+      "reply_id": null
+    },
+    {
+      "id": "M-005",
+      "from": "+1-555-0105",
+      "role": "resident",
+      "zone": "B",
+      "text": "Are there any bottled water supplies left?",
+      "received_at": "04:16",
+      "claims": [
+        "Bottled water distribution has stopped."
+      ],
+      "cluster_id": "R-005",
+      "reply_id": null
+    },
+    {
+      "id": "M-006",
+      "from": "+1-555-0106",
+      "role": "resident",
+      "zone": "C",
+      "text": "Is Shelter A closed? My neighbor says they are turning everyone away.",
+      "received_at": "04:17",
+      "claims": [
+        "Shelter A has closed and is turning people away."
+      ],
+      "cluster_id": "R-001",
+      "reply_id": null
+    },
+    {
+      "id": "M-007",
+      "from": "+1-555-0100",
+      "role": "resident",
+      "zone": "A",
+      "text": "Someone says tap water is safe now. Is that true?",
+      "received_at": "04:18",
+      "claims": [
+        "Tap water is safe to drink without boiling."
+      ],
+      "cluster_id": "R-002",
+      "reply_id": null
+    },
+    {
+      "id": "M-008",
+      "from": "+1-555-0108",
+      "role": "volunteer",
+      "zone": "B",
+      "text": "Can we cross the East bridge?",
+      "received_at": "04:19",
+      "claims": [
+        "The East bridge has reopened to everyone."
+      ],
+      "cluster_id": "R-003",
+      "reply_id": null
+    },
+    {
+      "id": "M-009",
+      "from": "+1-555-0109",
+      "role": "resident",
+      "zone": "C",
+      "text": "Is North Community Hall still taking families?",
+      "received_at": "04:20",
+      "claims": [
+        "Shelter B is accepting residents."
+      ],
+      "cluster_id": "R-004",
+      "reply_id": null
+    },
+    {
+      "id": "M-010",
+      "from": "+1-555-0110",
+      "role": "resident",
+      "zone": "A",
+      "text": "Are there any bottled water supplies left?",
+      "received_at": "04:21",
+      "claims": [
+        "Bottled water distribution has stopped."
+      ],
+      "cluster_id": "R-005",
+      "reply_id": null
+    },
+    {
+      "id": "M-011",
+      "from": "+1-555-0111",
+      "role": "resident",
+      "zone": "B",
+      "text": "Is Shelter A closed? My neighbor says they are turning everyone away.",
+      "received_at": "04:22",
+      "claims": [
+        "Shelter A has closed and is turning people away."
+      ],
+      "cluster_id": "R-001",
+      "reply_id": null
+    },
+    {
+      "id": "M-012",
+      "from": "+1-555-0112",
+      "role": "resident",
+      "zone": "C",
+      "text": "Someone says tap water is safe now. Is that true?",
+      "received_at": "04:23",
+      "claims": [
+        "Tap water is safe to drink without boiling."
+      ],
+      "cluster_id": "R-002",
+      "reply_id": null
+    },
+    {
+      "id": "M-013",
+      "from": "+1-555-0100",
+      "role": "resident",
+      "zone": "A",
+      "text": "Can we cross the East bridge?",
+      "received_at": "04:24",
+      "claims": [
+        "The East bridge has reopened to everyone."
+      ],
+      "cluster_id": "R-003",
+      "reply_id": null
+    },
+    {
+      "id": "M-014",
+      "from": "+1-555-0114",
+      "role": "resident",
+      "zone": "B",
+      "text": "Is North Community Hall still taking families?",
+      "received_at": "04:25",
+      "claims": [
+        "Shelter B is accepting residents."
+      ],
+      "cluster_id": "R-004",
+      "reply_id": null
+    },
+    {
+      "id": "M-015",
+      "from": "+1-555-0115",
+      "role": "volunteer",
+      "zone": "C",
+      "text": "Are there any bottled water supplies left?",
+      "received_at": "04:26",
+      "claims": [
+        "Bottled water distribution has stopped."
+      ],
+      "cluster_id": "R-005",
+      "reply_id": null
+    },
+    {
+      "id": "M-016",
+      "from": "+1-555-0116",
+      "role": "resident",
+      "zone": "A",
+      "text": "Is Shelter A closed? My neighbor says they are turning everyone away.",
+      "received_at": "04:27",
+      "claims": [
+        "Shelter A has closed and is turning people away."
+      ],
+      "cluster_id": "R-001",
+      "reply_id": null
+    },
+    {
+      "id": "M-017",
+      "from": "+1-555-0117",
+      "role": "resident",
+      "zone": "B",
+      "text": "Someone says tap water is safe now. Is that true?",
+      "received_at": "04:28",
+      "claims": [
+        "Tap water is safe to drink without boiling."
+      ],
+      "cluster_id": "R-002",
+      "reply_id": null
+    },
+    {
+      "id": "M-018",
+      "from": "+1-555-0118",
+      "role": "resident",
+      "zone": "C",
+      "text": "Can we cross the East bridge?",
+      "received_at": "04:29",
+      "claims": [
+        "The East bridge has reopened to everyone."
+      ],
+      "cluster_id": "R-003",
+      "reply_id": null
+    },
+    {
+      "id": "M-019",
+      "from": "+1-555-0100",
+      "role": "resident",
+      "zone": "A",
+      "text": "Is North Community Hall still taking families?",
+      "received_at": "04:30",
+      "claims": [
+        "Shelter B is accepting residents."
+      ],
+      "cluster_id": "R-004",
+      "reply_id": null
+    },
+    {
+      "id": "M-020",
+      "from": "+1-555-0120",
+      "role": "resident",
+      "zone": "B",
+      "text": "Are there any bottled water supplies left?",
+      "received_at": "04:31",
+      "claims": [
+        "Bottled water distribution has stopped."
+      ],
+      "cluster_id": "R-005",
+      "reply_id": null
+    },
+    {
+      "id": "M-021",
+      "from": "+1-555-0121",
+      "role": "resident",
+      "zone": "C",
+      "text": "Is Shelter A closed? My neighbor says they are turning everyone away.",
+      "received_at": "04:32",
+      "claims": [
+        "Shelter A has closed and is turning people away."
+      ],
+      "cluster_id": "R-001",
+      "reply_id": null
+    },
+    {
+      "id": "M-022",
+      "from": "+1-555-0122",
+      "role": "volunteer",
+      "zone": "A",
+      "text": "Someone says tap water is safe now. Is that true?",
+      "received_at": "04:33",
+      "claims": [
+        "Tap water is safe to drink without boiling."
+      ],
+      "cluster_id": "R-002",
+      "reply_id": null
+    },
+    {
+      "id": "M-023",
+      "from": "+1-555-0123",
+      "role": "resident",
+      "zone": "B",
+      "text": "Can we cross the East bridge?",
+      "received_at": "04:34",
+      "claims": [
+        "The East bridge has reopened to everyone."
+      ],
+      "cluster_id": "R-003",
+      "reply_id": null
+    },
+    {
+      "id": "M-024",
+      "from": "+1-555-0124",
+      "role": "resident",
+      "zone": "C",
+      "text": "Is North Community Hall still taking families?",
+      "received_at": "04:35",
+      "claims": [
+        "Shelter B is accepting residents."
+      ],
+      "cluster_id": "R-004",
+      "reply_id": null
+    }
+  ],
+  "rumors": [
+    {
+      "id": "R-001",
+      "claim": "Shelter A has closed and is turning people away.",
+      "entity_ids": [
+        "SH-A"
+      ],
+      "message_count": 14,
+      "rate_per_10min": [
+        2,
+        3,
+        5,
+        9,
+        14
+      ],
+      "first_seen": "04:12",
+      "status": "drafted",
+      "verdict": "contradicted",
+      "evidence": [
+        {
+          "source_id": "SH-A",
+          "ref": "SH-A",
+          "published_at": "04:10",
+          "last_verified_at": "04:30",
+          "expires_at": "05:10"
+        }
+      ],
+      "emerging": true,
+      "outdated": false,
+      "evidence_expired": false,
+      "current_status_known": true,
+      "clarification_id": "O-001",
+      "validator": {
+        "passed": true,
+        "flags": [],
+        "fallback_used": false
+      },
+      "auto_send_ok": false
+    },
+    {
+      "id": "R-002",
+      "claim": "Tap water is safe to drink without boiling.",
+      "entity_ids": [
+        "B-001"
+      ],
+      "message_count": 9,
+      "rate_per_10min": [
+        1,
+        2,
+        3,
+        6,
+        9
+      ],
+      "first_seen": "04:12",
+      "status": "new",
+      "verdict": "contradicted",
+      "evidence": [
+        {
+          "source_id": "B-001",
+          "ref": "B-001",
+          "published_at": "04:10",
+          "last_verified_at": "04:30",
+          "expires_at": "05:10"
+        }
+      ],
+      "emerging": true,
+      "outdated": false,
+      "evidence_expired": false,
+      "current_status_known": true,
+      "clarification_id": "O-002",
+      "validator": {
+        "passed": true,
+        "flags": [],
+        "fallback_used": false
+      },
+      "auto_send_ok": false
+    },
+    {
+      "id": "R-003",
+      "claim": "The East bridge has reopened to everyone.",
+      "entity_ids": [
+        "B-002"
+      ],
+      "message_count": 6,
+      "rate_per_10min": [
+        3,
+        1,
+        0,
+        2,
+        6
+      ],
+      "first_seen": "04:12",
+      "status": "reopened",
+      "verdict": "unverified",
+      "evidence": [
+        {
+          "source_id": "B-002",
+          "ref": "B-002",
+          "published_at": "03:10",
+          "last_verified_at": "03:15",
+          "expires_at": "04:00"
+        }
+      ],
+      "emerging": true,
+      "outdated": true,
+      "evidence_expired": true,
+      "current_status_known": false,
+      "clarification_id": "O-003",
+      "validator": {
+        "passed": false,
+        "flags": [
+          "evidence_expired"
+        ],
+        "fallback_used": true
+      },
+      "auto_send_ok": false
+    },
+    {
+      "id": "R-004",
+      "claim": "Shelter B is accepting residents.",
+      "entity_ids": [
+        "SH-B"
+      ],
+      "message_count": 4,
+      "rate_per_10min": [
+        4,
+        3,
+        2,
+        1,
+        0
+      ],
+      "first_seen": "04:12",
+      "status": "resolved",
+      "verdict": "confirmed",
+      "evidence": [
+        {
+          "source_id": "SH-B",
+          "ref": "SH-B",
+          "published_at": "04:10",
+          "last_verified_at": "04:30",
+          "expires_at": "05:10"
+        }
+      ],
+      "emerging": false,
+      "outdated": false,
+      "evidence_expired": false,
+      "current_status_known": true,
+      "clarification_id": "O-004",
+      "validator": {
+        "passed": true,
+        "flags": [],
+        "fallback_used": false
+      },
+      "auto_send_ok": false
+    },
+    {
+      "id": "R-005",
+      "claim": "Bottled water distribution has stopped.",
+      "entity_ids": [],
+      "message_count": 3,
+      "rate_per_10min": [
+        0,
+        0,
+        1,
+        2,
+        3
+      ],
+      "first_seen": "04:12",
+      "status": "monitoring",
+      "verdict": "unverified",
+      "evidence": [],
+      "emerging": false,
+      "outdated": false,
+      "evidence_expired": false,
+      "current_status_known": false,
+      "clarification_id": "O-005",
+      "validator": {
+        "passed": false,
+        "flags": [
+          "missing_official_source"
+        ],
+        "fallback_used": true
+      },
+      "auto_send_ok": false
+    }
+  ],
+  "outbound": [
+    {
+      "id": "O-001",
+      "kind": "clarification",
+      "to": "Zone A",
+      "lang": "en",
+      "text": "As of 04:10, Shelter A at Riverside School is open. Please follow official updates; capacity can change.",
+      "source_ids": [
+        "SH-A"
+      ],
+      "valid_until": "05:10",
+      "state": "draft",
+      "created_at": "04:25",
+      "approved_by": null,
+      "approved_at": null,
+      "message_id": null,
+      "rumor_id": "R-001",
+      "validator": {
+        "passed": true,
+        "flags": [],
+        "fallback_used": false
+      },
+      "auto_send_ok": false,
+      "outdated": false
+    },
+    {
+      "id": "O-002",
+      "kind": "clarification",
+      "to": "Zone B",
+      "lang": "en",
+      "text": "As of 04:10, the City EOC advises boiling tap water in zones A and B. Bottled water is available at North Community Hall.",
+      "source_ids": [
+        "B-001"
+      ],
+      "valid_until": "05:10",
+      "state": "draft",
+      "created_at": "04:26",
+      "approved_by": null,
+      "approved_at": null,
+      "message_id": null,
+      "rumor_id": "R-002",
+      "validator": {
+        "passed": true,
+        "flags": [],
+        "fallback_used": false
+      },
+      "auto_send_ok": false,
+      "outdated": false
+    },
+    {
+      "id": "O-003",
+      "kind": "clarification",
+      "to": "Zone C",
+      "lang": "en",
+      "text": "Last official update 03:10 ? current East bridge access cannot be confirmed. Please wait for official guidance.",
+      "source_ids": [
+        "B-002"
+      ],
+      "valid_until": "04:00",
+      "state": "draft",
+      "created_at": "04:27",
+      "approved_by": null,
+      "approved_at": null,
+      "message_id": null,
+      "rumor_id": "R-003",
+      "validator": {
+        "passed": false,
+        "flags": [
+          "evidence_expired"
+        ],
+        "fallback_used": true
+      },
+      "auto_send_ok": false,
+      "outdated": true
+    },
+    {
+      "id": "O-004",
+      "kind": "clarification",
+      "to": "Zone B",
+      "lang": "en",
+      "text": "As of 04:15, Shelter B at North Community Hall is accepting residents.",
+      "source_ids": [
+        "SH-B"
+      ],
+      "valid_until": "05:10",
+      "state": "delivered",
+      "created_at": "04:28",
+      "approved_by": "Dana",
+      "approved_at": "04:30",
+      "message_id": null,
+      "rumor_id": "R-004",
+      "validator": {
+        "passed": true,
+        "flags": [],
+        "fallback_used": false
+      },
+      "auto_send_ok": false,
+      "outdated": false
+    },
+    {
+      "id": "O-005",
+      "kind": "clarification",
+      "to": "Zone A",
+      "lang": "en",
+      "text": "We are checking bottled water availability. Current supplies cannot be confirmed.",
+      "source_ids": [],
+      "valid_until": "05:10",
+      "state": "sent",
+      "created_at": "04:29",
+      "approved_by": "Dana",
+      "approved_at": "04:30",
+      "message_id": null,
+      "rumor_id": "R-005",
+      "validator": {
+        "passed": false,
+        "flags": [
+          "missing_official_source"
+        ],
+        "fallback_used": true
+      },
+      "auto_send_ok": false,
+      "outdated": false
+    }
+  ],
+  "shelters": [
+    {
+      "id": "SH-A",
+      "name": "Shelter A ? Riverside School",
+      "address": "120 Riverside Avenue",
+      "status": "open",
+      "status_updated_at": "04:10",
+      "status_expires_at": "05:10",
+      "expired": false
+    },
+    {
+      "id": "SH-B",
+      "name": "Shelter B ? North Community Hall",
+      "address": "48 North Street",
+      "status": "open",
+      "status_updated_at": "04:15",
+      "status_expires_at": "05:15",
+      "expired": false
+    }
+  ],
+  "bulletins": [
+    {
+      "id": "B-001",
+      "title": "Water safety advisory",
+      "body": "Boil tap water in zones A and B. Bottled water is available at North Community Hall.",
+      "published_at": "04:10",
+      "expires_at": "05:10",
+      "status": "active",
+      "expired": false,
+      "age_min": 25
+    },
+    {
+      "id": "B-002",
+      "title": "East bridge access",
+      "body": "East bridge was open to emergency vehicles at the last official update. Current access is unconfirmed.",
+      "published_at": "03:10",
+      "expires_at": "04:00",
+      "status": "expired",
+      "expired": true,
+      "age_min": 85
+    }
+  ],
+  "trace": [
+    {
+      "at": "04:18",
+      "message_id": "M-001",
+      "step": "step1",
+      "ok": false,
+      "detail": "Evidence requires officer review; automatic delivery blocked.",
+      "ms": 146
+    },
+    {
+      "at": "04:19",
+      "message_id": "M-002",
+      "step": "step2",
+      "ok": true,
+      "detail": "Official cached sources compared with claim.",
+      "ms": 824
+    },
+    {
+      "at": "04:20",
+      "message_id": "M-003",
+      "step": "validator",
+      "ok": true,
+      "detail": "Evidence timestamps and source references checked.",
+      "ms": 12
+    },
+    {
+      "at": "04:21",
+      "message_id": "M-004",
+      "step": "send",
+      "ok": true,
+      "detail": "Simulated clarification delivery acknowledged.",
+      "ms": 67
+    },
+    {
+      "at": "04:22",
+      "message_id": "M-005",
+      "step": "step1",
+      "ok": true,
+      "detail": "Claim extracted and linked to rumor cluster.",
+      "ms": 146
+    },
+    {
+      "at": "04:23",
+      "message_id": "M-006",
+      "step": "step2",
+      "ok": true,
+      "detail": "Official cached sources compared with claim.",
+      "ms": 824
+    },
+    {
+      "at": "04:24",
+      "message_id": "M-007",
+      "step": "validator",
+      "ok": true,
+      "detail": "Evidence timestamps and source references checked.",
+      "ms": 12
+    },
+    {
+      "at": "04:25",
+      "message_id": "M-008",
+      "step": "send",
+      "ok": false,
+      "detail": "Evidence requires officer review; automatic delivery blocked.",
+      "ms": 67
+    },
+    {
+      "at": "04:26",
+      "message_id": "M-009",
+      "step": "step1",
+      "ok": true,
+      "detail": "Claim extracted and linked to rumor cluster.",
+      "ms": 146
+    },
+    {
+      "at": "04:27",
+      "message_id": "M-010",
+      "step": "step2",
+      "ok": true,
+      "detail": "Official cached sources compared with claim.",
+      "ms": 824
+    },
+    {
+      "at": "04:28",
+      "message_id": "M-011",
+      "step": "validator",
+      "ok": true,
+      "detail": "Evidence timestamps and source references checked.",
+      "ms": 12
+    },
+    {
+      "at": "04:29",
+      "message_id": "M-012",
+      "step": "send",
+      "ok": true,
+      "detail": "Simulated clarification delivery acknowledged.",
+      "ms": 67
+    },
+    {
+      "at": "04:30",
+      "message_id": "M-013",
+      "step": "step1",
+      "ok": true,
+      "detail": "Claim extracted and linked to rumor cluster.",
+      "ms": 146
+    },
+    {
+      "at": "04:31",
+      "message_id": "M-014",
+      "step": "step2",
+      "ok": true,
+      "detail": "Official cached sources compared with claim.",
+      "ms": 824
+    },
+    {
+      "at": "04:32",
+      "message_id": "M-015",
+      "step": "validator",
+      "ok": false,
+      "detail": "Evidence requires officer review; automatic delivery blocked.",
+      "ms": 12
+    },
+    {
+      "at": "04:33",
+      "message_id": "M-016",
+      "step": "send",
+      "ok": true,
+      "detail": "Simulated clarification delivery acknowledged.",
+      "ms": 67
+    },
+    {
+      "at": "04:34",
+      "message_id": "M-017",
+      "step": "step1",
+      "ok": true,
+      "detail": "Claim extracted and linked to rumor cluster.",
+      "ms": 146
+    },
+    {
+      "at": "04:35",
+      "message_id": "M-018",
+      "step": "step2",
+      "ok": true,
+      "detail": "Official cached sources compared with claim.",
+      "ms": 824
+    }
+  ]
+}
