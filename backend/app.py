@@ -11,6 +11,7 @@ import ai_status
 import clock
 import db
 import pipeline  # real Bedrock pipeline (falls back to heuristics if offline)
+import sessions
 import templates
 import validator  # real validator (plan.md §5 rules)
 
@@ -19,6 +20,20 @@ DELIVERY_DELAY_SEC = 2  # sent -> delivered promotion threshold (wall-clock seco
 
 
 def lambda_handler(event, context):
+    headers = event.get("headers")
+    if headers is None:
+        # Internal call (chaos._run_script): stay in the caller's session.
+        return _dispatch(event)
+    headers = {k.lower(): v for k, v in headers.items()}
+    try:
+        sid = sessions.ensure(headers.get("x-session-id"))
+    except Exception as e:
+        return _respond(503, {"error": str(e), "type": type(e).__name__})
+    with db.session_scope(sid), pipeline.offline(headers.get("x-replay") == "1"):
+        return _dispatch(event)
+
+
+def _dispatch(event):
     route = event.get("routeKey", "")
     path_params = event.get("pathParameters") or {}
     body = _parse_body(event)
@@ -69,6 +84,7 @@ def _handle_state(_path, _body):
             "situations_done": system.get("situations_done") or [],
             "demo_phone": system.get("demo_phone"),
             "ai": ai_status.status(),  # Bedrock credential health (additive)
+            "session": sessions.mode(db.current_session()),  # private|shared|off (additive)
         },
         "zones": sorted(db.scan("TABLE_ZONES"), key=lambda z: z["id"]),
         "sources": db.scan("TABLE_SOURCES"),

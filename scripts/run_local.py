@@ -72,7 +72,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         length = int(self.headers.get("Content-Length") or 0)
         body = self.rfile.read(length).decode("utf-8") if length else None
-        event = {"routeKey": routeKey, "body": body, "pathParameters": path_params}
+        event = {"routeKey": routeKey, "body": body, "pathParameters": path_params,
+                 "headers": dict(self.headers.items())}
         resp = app.lambda_handler(event, None)
         self._send_raw(resp.get("statusCode", 200), resp.get("body") or "", resp.get("headers") or {})
 
@@ -86,7 +87,7 @@ class Handler(BaseHTTPRequestHandler):
         self._send_raw(204, "", {
             "Access-Control-Allow-Origin": "*",
             "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-            "Access-Control-Allow-Headers": "Content-Type",
+            "Access-Control-Allow-Headers": "Content-Type, X-Session-Id, X-Replay",
         })
 
     def _send(self, status, obj):
@@ -113,6 +114,9 @@ def main():
     print(f"TrueSignal local backend on http://localhost:{port}", flush=True)
     print(f"  model: {os.environ['BEDROCK_MODEL_ID']}", flush=True)
     print(f"  dynamodb: {os.environ['DYNAMODB_ENDPOINT']}", flush=True)
+    import sessions
+    print(f"  sessions: {'per visitor' if sessions.ENABLED else 'off (shared)'}", flush=True)
+    sessions.start_sweeper()
     # Threaded so GET /state keeps answering while a long scenario runs.
     ThreadingHTTPServer(("127.0.0.1", port), Handler).serve_forever()
 

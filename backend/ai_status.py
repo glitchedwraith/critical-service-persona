@@ -12,6 +12,8 @@ import os
 import threading
 import time
 
+import db
+
 PROBE_TTL_SEC = 60
 
 # Error codes that mean "the credentials themselves are bad", not a model hiccup.
@@ -22,8 +24,9 @@ _CRED_ERRORS = {
 }
 
 _probe = {"at": 0.0, "status": None, "detail": None}
-_last_call = {"ok": None, "status": None, "detail": None, "at": None, "ms": None}
-_inflight = {}  # thread id -> {"step", "started"}; read by GET /state while a call runs
+_last_call = {"ok": None, "status": None, "detail": None, "at": None}
+_inflight = {}   # thread id -> {"step", "started", "session"}; read by GET /state mid-call
+_last_ms = {}    # demo session -> latency of its most recent Bedrock call
 
 # Bedrock tool name -> what the UI says while it waits.
 STEP_LABELS = {
@@ -44,15 +47,17 @@ def _classify(exc):
 def begin(tool_name):
     """Mark a Bedrock call as in flight so polling clients can show "thinking"."""
     _inflight[threading.get_ident()] = {
-        "step": STEP_LABELS.get(tool_name, tool_name), "started": time.time()}
+        "step": STEP_LABELS.get(tool_name, tool_name), "started": time.time(),
+        "session": db.current_session()}
 
 
 def record(ok, exc=None):
     """Called by the pipeline after every Bedrock call (ends the in-flight mark)."""
-    started = _inflight.pop(threading.get_ident(), {}).get("started")
+    call = _inflight.pop(threading.get_ident(), {})
     status, detail = ("ok", None) if ok else _classify(exc)
-    _last_call.update(ok=ok, status=status, detail=detail, at=time.time(),
-                      ms=int((time.time() - started) * 1000) if started else None)
+    _last_call.update(ok=ok, status=status, detail=detail, at=time.time())
+    if ok and call:
+        _last_ms[call["session"]] = int((time.time() - call["started"]) * 1000)
 
 
 def _run_probe():
@@ -81,7 +86,9 @@ def status():
     # Credentials can be valid while Bedrock still refuses (model access revoked).
     if result == "ok" and _last_call["ok"] is False and _last_call["status"] != "error":
         result, detail = _last_call["status"], _last_call["detail"]
+    # Credential health is global; thinking/latency belong to this visitor's session.
+    sid = db.current_session()
     thinking = [{"step": c["step"], "elapsed_ms": int((now - c["started"]) * 1000)}
-                for c in list(_inflight.values())]
+                for c in list(_inflight.values()) if c["session"] == sid]
     return {"status": result, "detail": detail, "checked_at": int(_probe["at"]),
-            "thinking": thinking, "last_ms": _last_call["ms"]}
+            "thinking": thinking, "last_ms": _last_ms.get(sid)}

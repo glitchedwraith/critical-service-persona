@@ -19,6 +19,8 @@ error in `detail` via a logged WARNING.
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import json
 import logging
 import os
@@ -52,6 +54,19 @@ BEDROCK_REGION = os.environ.get("BEDROCK_REGION", os.environ.get("AWS_REGION", "
 
 # Lazy-init so unit tests + offline imports don't require boto3 creds.
 _client = None
+
+# Fast replays ("start from situation X") skip Bedrock and take the same
+# heuristic + template fallback path used when Bedrock is unreachable.
+_offline = contextvars.ContextVar("pipeline_offline", default=False)
+
+
+@contextlib.contextmanager
+def offline(on=True):
+    token = _offline.set(bool(on))
+    try:
+        yield
+    finally:
+        _offline.reset(token)
 
 
 def _bedrock():
@@ -334,6 +349,8 @@ def _auto_send_ok(draft, sources, sim_clock):
 def _converse_tool(system, user, tool, tool_name, max_tokens=1024):
     """Call Bedrock Converse with toolChoice forcing one tool. Return parsed
     tool input dict. Raises on error so callers can fall back."""
+    if _offline.get():
+        raise RuntimeError("offline replay: Bedrock skipped")
     ai_status.begin(tool_name)
     try:
         resp = _converse_raw(system, user, tool, tool_name, max_tokens)
