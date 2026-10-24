@@ -9,6 +9,10 @@ from decimal import Decimal
 import clock
 import db
 import pipeline_stub as pipeline  # Phase 6 swap: `import pipeline as pipeline`
+import validator_stub as validator  # Phase 6 swap: `import validator as validator`
+
+
+DELIVERY_DELAY_SEC = 2  # sent -> delivered promotion threshold (wall-clock seconds)
 
 
 def lambda_handler(event, context):
@@ -29,6 +33,7 @@ def lambda_handler(event, context):
 # ---- GET /state ------------------------------------------------------------
 
 def _handle_state(_path, _body):
+    _promote_delivered()
     system = db.get("TABLE_SYSTEM", clock.SYSTEM_ID) or {}
     sim_clock = system.get("sim_clock") or "00:00"
 
@@ -96,6 +101,22 @@ def _rate_is_emerging(rate):
     if not rate:
         return False
     return int(rate[-1]) >= 5
+
+
+def _promote_delivered():
+    """Lazy delivery sim: sent -> delivered after DELIVERY_DELAY_SEC wall seconds."""
+    now_wall = time.time()
+    for o in db.scan("TABLE_OUTBOUND"):
+        if o.get("state") != "sent":
+            continue
+        sent_wall = o.get("sent_at_wall")
+        if sent_wall is None:
+            continue
+        if (now_wall - float(sent_wall)) >= DELIVERY_DELAY_SEC:
+            db.update("TABLE_OUTBOUND", o["id"], {
+                "state": "delivered",
+                "delivered_at": clock.now(),
+            })
 
 
 def _ts_lt(a, b):
@@ -168,7 +189,7 @@ def _handle_inbound(_path, body):
     db.update("TABLE_MESSAGES", msg_id, msg_updates)
 
     if emerging_fired and cluster_id:
-        _verify_and_draft(cluster_id, msg_id)
+        _verify_rumor(cluster_id, msg_id)
 
     return _respond(200, {
         "message_id": msg_id,
@@ -262,6 +283,7 @@ def _draft_individual_reply(msg_id, to, cluster_id, now, shelters, bulletins, so
         "valid_until": _max_expires(result.get("evidence")),
         "state": "sent",
         "created_at": now,
+        "sent_at_wall": int(time.time()),
         "approved_by": None,
         "approved_at": None,
         "message_id": msg_id,
@@ -276,11 +298,13 @@ def _draft_individual_reply(msg_id, to, cluster_id, now, shelters, bulletins, so
     return outbound
 
 
-def _verify_and_draft(rumor_id, trigger_msg_id):
-    """Emerging rumor: run verify and create a broadcast draft awaiting approval."""
+def _verify_rumor(rumor_id, trigger_msg_id=None):
+    """Run pipeline.verify, persist evidence + validator meta on the rumor,
+    and create a broadcast draft outbound. Returns (rumor, outbound) or
+    (None, None) if the rumor id is unknown."""
     rumor = db.get("TABLE_RUMORS", rumor_id)
     if not rumor:
-        return None
+        return None, None
     shelters = db.scan("TABLE_SHELTERS")
     bulletins = db.scan("TABLE_BULLETINS")
     sources = db.scan("TABLE_SOURCES")
@@ -309,7 +333,7 @@ def _verify_and_draft(rumor_id, trigger_msg_id):
     }
     db.put("TABLE_OUTBOUND", outbound)
 
-    validator = result.get("validator") or {}
+    validator_meta = result.get("validator") or {}
     db.update("TABLE_RUMORS", rumor_id, {
         "verdict": result.get("verdict", "unverified"),
         "current_status_known": bool(result.get("current_status_known")),
@@ -317,21 +341,120 @@ def _verify_and_draft(rumor_id, trigger_msg_id):
         "clarification_id": outbound_id,
         "emerging": True,
         "status": "drafted",
-        "baseline_rate_per_10min": list(rumor.get("rate_per_10min") or []),
+        "validator": {
+            "passed": bool(validator_meta.get("passed")),
+            "flags": validator_meta.get("flags") or [],
+            "fallback_used": bool(validator_meta.get("fallback_used")),
+        },
+        "auto_send_ok": bool(result.get("auto_send_ok")),
     })
 
     _append_trace(step="step2", ok=True,
-                  detail=f"emerging {rumor_id} -> draft {outbound_id}",
+                  detail=f"verified {rumor_id} -> draft {outbound_id}",
                   ms=ms, message_id=trigger_msg_id)
-    _append_trace(step="validator", ok=bool(validator.get("passed")),
-                  detail=f"flags={validator.get('flags') or []}",
+    _append_trace(step="validator", ok=bool(validator_meta.get("passed")),
+                  detail=f"flags={validator_meta.get('flags') or []}",
                   ms=0, message_id=trigger_msg_id)
-    return outbound
+    return db.get("TABLE_RUMORS", rumor_id), outbound
 
 
 def _max_expires(evidence):
     exps = [e.get("expires_at") for e in (evidence or []) if e.get("expires_at")]
     return max(exps) if exps else None
+
+
+# ---- POST /rumors/{id}/verify ---------------------------------------------
+
+def _handle_verify(path, _body):
+    rumor_id = (path or {}).get("id")
+    if not rumor_id:
+        return _respond(400, {"error": "missing path param id"})
+    rumor, outbound = _verify_rumor(rumor_id)
+    if rumor is None:
+        return _respond(404, {"error": f"rumor {rumor_id!r} not found"})
+    return _respond(200, {
+        "rumor": _rumor_flags(rumor, clock.now()),
+        "outbound": outbound,
+    })
+
+
+# ---- POST /outbound/{id}/edit ---------------------------------------------
+
+def _handle_edit(path, body):
+    outbound_id = (path or {}).get("id")
+    if not outbound_id:
+        return _respond(400, {"error": "missing path param id"})
+    if not isinstance(body, dict) or "text" not in body:
+        return _respond(400, {"error": "body must be {text: ...}"})
+
+    outbound = db.get("TABLE_OUTBOUND", outbound_id)
+    if outbound is None:
+        return _respond(404, {"error": f"outbound {outbound_id!r} not found"})
+    if outbound.get("state") != "draft":
+        return _respond(400, {
+            "error": f"cannot edit outbound in state {outbound.get('state')!r}; "
+                     "only drafts are editable"
+        })
+
+    new_text = body["text"]
+    ctx = {
+        "shelters": db.scan("TABLE_SHELTERS"),
+        "bulletins": db.scan("TABLE_BULLETINS"),
+        "sources": db.scan("TABLE_SOURCES"),
+        "sim_clock": clock.now(),
+    }
+    fixed_draft, flags = validator.validate(dict(outbound, text=new_text), ctx)
+    db.update("TABLE_OUTBOUND", outbound_id, {
+        "text": fixed_draft.get("text", new_text),
+        "validator": {
+            "passed": not flags,
+            "flags": flags,
+            "fallback_used": False,
+        },
+    })
+    _append_trace(step="validator", ok=not flags,
+                  detail=f"edit {outbound_id}", ms=0, message_id=None)
+    return _respond(200, db.get("TABLE_OUTBOUND", outbound_id))
+
+
+# ---- POST /outbound/{id}/approve ------------------------------------------
+
+def _handle_approve(path, body):
+    outbound_id = (path or {}).get("id")
+    if not outbound_id:
+        return _respond(400, {"error": "missing path param id"})
+    if not isinstance(body, dict) or "approver" not in body:
+        return _respond(400, {"error": "body must be {approver: ...}"})
+
+    outbound = db.get("TABLE_OUTBOUND", outbound_id)
+    if outbound is None:
+        return _respond(404, {"error": f"outbound {outbound_id!r} not found"})
+    if outbound.get("state") != "draft":
+        return _respond(400, {
+            "error": f"only drafts can be approved; got state={outbound.get('state')!r}"
+        })
+
+    now = clock.now()
+    db.update("TABLE_OUTBOUND", outbound_id, {
+        "state": "sent",
+        "approved_by": body["approver"],
+        "approved_at": now,
+        "sent_at_wall": int(time.time()),
+    })
+
+    rumor_id = outbound.get("rumor_id")
+    if rumor_id:
+        rumor = db.get("TABLE_RUMORS", rumor_id)
+        if rumor:
+            db.update("TABLE_RUMORS", rumor_id, {
+                "status": "monitoring",
+                "baseline_rate_per_10min": list(rumor.get("rate_per_10min") or []),
+            })
+
+    _append_trace(step="send", ok=True,
+                  detail=f"approved {outbound_id} by {body['approver']}",
+                  ms=0, message_id=None)
+    return _respond(200, db.get("TABLE_OUTBOUND", outbound_id))
 
 
 # ---- POST /reset -----------------------------------------------------------
@@ -392,7 +515,9 @@ ROUTES = {
     "GET /state": _handle_state,
     "POST /reset": _handle_reset,
     "POST /sms/inbound": _handle_inbound,
-    # TODO(P1 phase 4): POST /rumors/{id}/verify, /outbound/{id}/edit, /outbound/{id}/approve
+    "POST /rumors/{id}/verify": _handle_verify,
+    "POST /outbound/{id}/edit": _handle_edit,
+    "POST /outbound/{id}/approve": _handle_approve,
     # TODO(P1 phase 5): POST /chaos/{action}
 }
 

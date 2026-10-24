@@ -53,6 +53,23 @@ for i in 1 2 3 4 5; do
     -d "{\"from\":\"+1-555-010$i\",\"role\":\"resident\",\"zone\":\"B\",\"text\":\"is shelter A shut $i\"}" >/dev/null
 done
 curl -s http://localhost:3000/state | jq '.rumors[0] | {id, emerging, message_count, rate_per_10min, status, clarification_id}'
+
+# Manual verify (idempotent — mints a fresh draft, points rumor.clarification_id at it)
+curl -s -X POST http://localhost:3000/rumors/R-001/verify | jq .
+
+# Edit the current draft (re-runs validator stub)
+DRAFT=$(curl -s http://localhost:3000/state | jq -r '.rumors[0].clarification_id')
+curl -s -X POST http://localhost:3000/outbound/$DRAFT/edit \
+  -H 'Content-Type: application/json' \
+  -d '{"text":"UPDATE 04:10: Shelter A is OPEN (Lincoln HS Gym). Source: City EOC."}' | jq .
+
+# Approve: draft -> sent, rumor -> monitoring, baseline rate captured
+curl -s -X POST http://localhost:3000/outbound/$DRAFT/approve \
+  -H 'Content-Type: application/json' \
+  -d '{"approver":"Dana"}' | jq .
+
+# Delivery sim: sent -> delivered after ~2 wall-seconds, promoted lazily on next /state
+sleep 3 && curl -s http://localhost:3000/state | jq '.outbound[] | {id, state, delivered_at}'
 ```
 
 ## Deploy to AWS
@@ -75,7 +92,8 @@ Full contract: [../plan.md §3.2](../plan.md). Curl examples land here as each p
 | 2 | `GET /state` | done |
 | 2 | `POST /reset` | done |
 | 3 | `POST /sms/inbound` | done |
-| 4 | `POST /rumors/{id}/verify` | pending |
-| 4 | `POST /outbound/{id}/edit` | pending |
-| 4 | `POST /outbound/{id}/approve` | pending |
+| 4 | `POST /rumors/{id}/verify` | done |
+| 4 | `POST /outbound/{id}/edit` | done |
+| 4 | `POST /outbound/{id}/approve` | done |
+| 4 | delivery sim (sent → delivered after ~2s wall) | done |
 | 5 | `POST /chaos/{action}` | pending |
