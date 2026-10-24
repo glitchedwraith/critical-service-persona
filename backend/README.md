@@ -70,6 +70,14 @@ curl -s -X POST http://localhost:3000/outbound/$DRAFT/approve \
 
 # Delivery sim: sent -> delivered after ~2 wall-seconds, promoted lazily on next /state
 sleep 3 && curl -s http://localhost:3000/state | jq '.outbound[] | {id, state, delivered_at}'
+
+# Chaos: six actions, each mutates state
+curl -s -X POST http://localhost:3000/chaos/city_site_down | jq .
+curl -s -X POST http://localhost:3000/chaos/rumor_wave | jq .
+curl -s -X POST http://localhost:3000/chaos/shelter_a_full | jq .
+curl -s -X POST http://localhost:3000/chaos/conflicting_report | jq .
+curl -s -X POST http://localhost:3000/chaos/advance_clock -H 'Content-Type: application/json' -d '{"minutes":45}' | jq .
+curl -s -X POST http://localhost:3000/chaos/expire_bulletin -H 'Content-Type: application/json' -d '{"id":"B-001"}' | jq .
 ```
 
 ## Deploy to AWS
@@ -96,4 +104,5 @@ Full contract: [../plan.md §3.2](../plan.md). Curl examples land here as each p
 | 4 | `POST /outbound/{id}/edit` | done |
 | 4 | `POST /outbound/{id}/approve` | done |
 | 4 | delivery sim (sent → delivered after ~2s wall) | done |
-| 5 | `POST /chaos/{action}` | pending |
+| 5 | `POST /chaos/{action}` (6 actions) | done |
+| 5 | rumor_loop (monitoring → resolved/reopened + evidence_expired) | done |

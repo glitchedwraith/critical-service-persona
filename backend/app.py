@@ -191,6 +191,9 @@ def _handle_inbound(_path, body):
     if emerging_fired and cluster_id:
         _verify_rumor(cluster_id, msg_id)
 
+    import rumor_loop  # lazy to avoid import cycle
+    rumor_loop.tick()
+
     return _respond(200, {
         "message_id": msg_id,
         "cluster_id": cluster_id,
@@ -457,6 +460,20 @@ def _handle_approve(path, body):
     return _respond(200, db.get("TABLE_OUTBOUND", outbound_id))
 
 
+# ---- POST /chaos/{action} -------------------------------------------------
+
+def _handle_chaos(path, body):
+    action = (path or {}).get("action")
+    if not action:
+        return _respond(400, {"error": "missing path param action"})
+    import chaos  # lazy
+    try:
+        result = chaos.apply(action, body)
+    except ValueError as e:
+        return _respond(400, {"error": str(e)})
+    return _respond(200, result)
+
+
 # ---- POST /reset -----------------------------------------------------------
 
 def _handle_reset(_path, _body):
@@ -518,7 +535,7 @@ ROUTES = {
     "POST /rumors/{id}/verify": _handle_verify,
     "POST /outbound/{id}/edit": _handle_edit,
     "POST /outbound/{id}/approve": _handle_approve,
-    # TODO(P1 phase 5): POST /chaos/{action}
+    "POST /chaos/{action}": _handle_chaos,
 }
 
 

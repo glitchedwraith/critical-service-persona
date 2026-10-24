@@ -8,14 +8,16 @@ def extract(text: str, clusters: list, entity_ids: list) -> dict:
     """Step 1: extract & cluster. Returns v3 §4 Step 1 shape."""
     tl = text.lower()
 
-    if "shelter a" in tl and ("clos" in tl or "shut" in tl):
-        matched = _match_cluster(clusters, "shelter a")
-        return {
-            "question_type": "rumor",
-            "claims": [{"text": "Shelter A is closed", "entity_ids": ["SH-A"]}],
-            "cluster_match": matched,
-            "new_cluster_claim": None if matched else "Shelter A has closed",
-        }
+    for shelter_phrase, entity_id in (("shelter a", "SH-A"), ("shelter d", "SH-D")):
+        if shelter_phrase in tl and ("clos" in tl or "shut" in tl):
+            matched = _match_cluster(clusters, shelter_phrase)
+            display = shelter_phrase.title()  # "Shelter A" / "Shelter D"
+            return {
+                "question_type": "rumor",
+                "claims": [{"text": f"{display} is closed", "entity_ids": [entity_id]}],
+                "cluster_match": matched,
+                "new_cluster_claim": None if matched else f"{display} has closed",
+            }
 
     if "water" in tl and any(w in tl for w in ("poison", "contaminat", "unsafe", "bad", "dirty")):
         matched = _match_cluster(clusters, "water")
