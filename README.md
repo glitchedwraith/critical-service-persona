@@ -24,23 +24,19 @@ The demo is a guided simulation over a live map of San Jose. Pick a situation on
 |---|---|---|
 | ![Dana reviews a correction draft](docs/images/dana-approval.png) | ![Clarification ripples across zones](docs/images/clarification-sent.png) | ![Dana chooses which source to trust](docs/images/officer-decision.png) |
 
-There are 14 situations, all driven by seed data:
-- the website goes dark
-- a resident asks
-- a rumor spreads, won't stop, then dies down
-- a shelter fills up
-- a false report
-- two officials disagree
-- time passes and official info goes stale
-- a text fails to deliver
-- a prompt-injection attempt
-- a water rumor
-- everyday questions
+The rail has 5 situations, all driven by seed data:
+1. the city website goes dark
+2. a rumor spreads (six differently worded texts, back to back)
+3. the rumor dies down after Dana's correction
+4. two officials disagree, so Dana decides
+5. official info goes stale
+
+Between them, you text your own questions as a resident: Bedrock answers in about 3 s, from official records, with the time the information dates from. A first-time visitor gets a guided tour, and each visitor gets their own copy of the demo. The presenter script is in [DEMO.md](DEMO.md).
 
 ## Why Amazon Bedrock
 
 **Why the problem needs a language model.** Residents don't write in keywords. *"shelter a shut down please confirm"*, *"SHELTER A CLOSED everyone move to D"* and *"my cousin says shelter A closed"* are one rumor. *"Is the tap water poisoned?"* has to be matched to the boil-water bulletin. The answer has to be a short, cited SMS. Bedrock does three language jobs:
-- **Step 1 · Understand:** extract the claims in a text, match them to known shelters and bulletins, and group differently worded texts into one rumor. In the demo, 12 variants become a single cluster.
+- **Step 1 · Understand:** extract the claims in a text, match them to known shelters and bulletins, and group differently worded texts into one rumor. In the demo, 6 variants become a single cluster.
 - **Step 2 · Verify & draft:** compare the claim with the structured shelter and bulletin rows, and write the resident reply and the broadcast correction, each with its source and "as of HH:MM".
 
 **Why Bedrock and not an external AI API:**
@@ -93,6 +89,6 @@ The script:
 4. Creates and seeds the tables.
 5. Runs the backend and the frontend together.
 
-Then open **http://127.0.0.1:5173** and click the situations from top to bottom. **Reset demo** reseeds everything, and **Ctrl-C** stops the app. `./start.sh --install` only installs the dependencies.
+Then open **http://127.0.0.1:5173** and follow the tour, or [DEMO.md](DEMO.md) to present it. **Reset demo** reseeds everything, and **Ctrl-C** stops the app. `./start.sh --install` only installs the dependencies.
 
 > Simulation only: fictional data, no real SMS. Component docs: [backend/](backend/README.md) · [frontend/](frontend/README.md) · [full plan](TrueSignal-Plan-v3.md).

@@ -14,22 +14,10 @@
     "label": "Shelter A closed (12 variants)",
     "messages": [
       {
-        "from": "+1-555-0701",
-        "role": "resident",
-        "zone": "A",
-        "text": "hearing shelter A closed??"
-      },
-      {
         "from": "+1-555-0702",
         "role": "resident",
         "zone": "B",
         "text": "shelter A is shut, go to D"
-      },
-      {
-        "from": "+1-555-0703",
-        "role": "resident",
-        "zone": "B",
-        "text": "is shelter A really closed"
       },
       {
         "from": "+1-555-0704",
@@ -50,34 +38,10 @@
         "text": "my cousin says shelter A closed"
       },
       {
-        "from": "+1-555-0707",
-        "role": "resident",
-        "zone": "B",
-        "text": "shelter A closed???"
-      },
-      {
         "from": "+1-555-0708",
         "role": "resident",
         "zone": "C",
         "text": "they shut shelter A for repairs"
-      },
-      {
-        "from": "+1-555-0709",
-        "role": "resident",
-        "zone": "A",
-        "text": "shelter A closed, going to D"
-      },
-      {
-        "from": "+1-555-0710",
-        "role": "resident",
-        "zone": "B",
-        "text": "shelter A closing - true?"
-      },
-      {
-        "from": "+1-555-0711",
-        "role": "resident",
-        "zone": "B",
-        "text": "shelter a was shut earlier"
       },
       {
         "from": "+1-555-0712",

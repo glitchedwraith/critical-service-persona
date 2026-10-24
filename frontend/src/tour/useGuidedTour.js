@@ -50,11 +50,11 @@ function buildSteps(ctx) {
   return [
     { data: { id: 'welcome' }, popover: {
       title: 'Welcome to TrueSignal',
-      description: 'This is a simulated emergency in San Jose. Residents text rumors; Dana, the public-information officer, checks them against official sources and sends corrections. This tour walks you through your first few situations. You do the clicking.',
+      description: 'This is a simulated emergency in San Jose. Residents text rumors; Dana, the public-information officer, checks them against official sources and sends corrections. This tour walks you through the first steps. You do the clicking and the typing.',
       showButtons: ['next', 'close'], nextBtnText: 'Start' } },
     { element: '[data-tour="situations"]', data: { id: 'rail' }, popover: {
       title: 'Situations', side: 'right', align: 'start', showButtons: ['next', 'previous', 'close'],
-      description: 'Each situation plays out one event in the emergency. Run them in order, top to bottom. You can also text as a resident from the box at the bottom.' } },
+      description: 'Each situation plays out one event in the emergency. Run them in order, top to bottom. Between them, text your own questions from the box at the bottom.' } },
 
     clickStep(ctx, 'run-1', NEXT_SITUATION, 'Run your first situation',
       el => `Click “${titleOf(el)}” to start it.`),
@@ -64,14 +64,17 @@ function buildSteps(ctx) {
       title: 'City status', side: 'bottom', align: 'center', showButtons: ['next', 'close'],
       description: 'Sim clock, whether the city website is up, how old Dana’s cached bulletins are, and SMS gateway health. When the site goes down, Dana answers from the cache and says how old it is.' } },
 
-    clickStep(ctx, 'run-2', NEXT_SITUATION, 'Next situation',
-      el => `Click “${titleOf(el)}”.`),
-    waitStep('watch-2', '[data-tour="trace"]', 'The pipeline at work',
-      'Each incoming text goes through Understand → Verify → Safety check → Send. These chips show what ran and how long it took.',
-      situationFinished, 'top'),
+    { element: '[data-tour="resident-input"]', popover: {
+      title: 'Ask your own question', side: 'right', align: 'end', showButtons: ['close'],
+      description: 'You’re a resident now. Type a question, for example “is the tap water safe to drink?”, and press Enter. Bedrock reads it, checks it against official records and replies in a few seconds.' },
+      data: { id: 'ask', waitFor: v => !v.busy && v.state.messages.length > ctx.messages },
+      onHighlightStarted: () => { ctx.messages = ctx.view.state.messages.length; } },
+    { element: '[data-tour="trace"]', data: { id: 'pipeline' }, popover: {
+      title: 'The pipeline at work', side: 'top', align: 'center', showButtons: ['next', 'close'],
+      description: 'Your text went through Understand → Verify → Safety check → Send. These chips show what ran and how long it took; the pill at the top timed Bedrock live.' } },
 
-    clickStep(ctx, 'run-3', NEXT_SITUATION, 'Now a rumor',
-      el => `Click “${titleOf(el)}”. Watch the zones on the map turn amber as the rumor spreads.`),
+    clickStep(ctx, 'run-2', NEXT_SITUATION, 'Now a rumor',
+      el => `Click “${titleOf(el)}”. Residents text the same rumor in different words; watch the zones on the map turn amber as it spreads.`),
     waitStep('watch-3', '[data-tour="dana"]', 'Dana needs you',
       'Residents are repeating a rumor. Dana will ask for your call once the texts are in.',
       v => situationFinished(v) && (v.focus.actions.length > 0 || 'finish'), 'left'),
@@ -88,7 +91,7 @@ function buildSteps(ctx) {
 
     { element: '[data-tour="top-actions"]', data: { id: 'finish' }, popover: {
       title: 'You’re on your own now', side: 'bottom', align: 'end', showButtons: ['next'], doneBtnText: 'Got it',
-      description: 'Keep going through the remaining situations. “Reset demo” starts the simulation over, and “Take the tour” resets it and replays this guide.' } },
+      description: 'Keep going through the remaining situations, and keep texting questions. “Reset demo” starts over, and “Take the tour” resets it and replays this guide.' } },
   ];
 }
 
