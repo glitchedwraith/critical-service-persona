@@ -20,7 +20,7 @@ view (which should regenerate once, then fall back to templates.py).
 """
 import re
 
-import templates
+from backend import templates
 
 
 # ---- small helpers ---------------------------------------------------------
