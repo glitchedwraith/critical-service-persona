@@ -21,7 +21,11 @@ REMOTE="ec2-user@$HOST"
 
 step "Frontend build"
 # Only the public CARTO tile key goes into the bundle; nothing else from .env.
+# Root .env first, then frontend/.env (same lookup as start.sh). It must be
+# passed explicitly: an empty process env var would override frontend/.env.
 CARTO_KEY="$(sed -n 's/^VITE_CARTO_API_KEY=//p' .env 2>/dev/null || true)"
+[ -n "$CARTO_KEY" ] || CARTO_KEY="$(sed -n 's/^VITE_CARTO_API_KEY=//p' frontend/.env 2>/dev/null || true)"
+echo "  CARTO map tiles: $([ -n "$CARTO_KEY" ] && echo on || echo "off (Esri fallback)")"
 (cd frontend && npm ci --no-audit --no-fund --loglevel=error \
   && npm test --silent >/dev/null \
   && VITE_API_BASE_URL=/api VITE_CARTO_API_KEY="$CARTO_KEY" npx vite build --logLevel warn)
