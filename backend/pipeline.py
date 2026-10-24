@@ -23,6 +23,16 @@ import json
 import logging
 import os
 import time
+from decimal import Decimal
+
+
+def _jdumps(obj):
+    """json.dumps that tolerates DynamoDB Decimal values in prompt payloads."""
+    def _default(o):
+        if isinstance(o, Decimal):
+            return int(o) if o % 1 == 0 else float(o)
+        raise TypeError(f"not JSON-serializable: {type(o).__name__}")
+    return json.dumps(obj, ensure_ascii=False, default=_default)
 
 import validator as _validator
 import templates
@@ -30,11 +40,12 @@ import templates
 
 logger = logging.getLogger(__name__)
 
-# Model id — override via env for the hackathon account. Claude 3 Haiku on
-# Bedrock has the widest region availability + lowest latency, so it's the
-# default; swap to Nova / Sonnet via BEDROCK_MODEL_ID if needed.
+# Model id — override via env for the hackathon account. Haiku 4.5 via the
+# US cross-region inference profile: fast + currently supported in the
+# workshop account (Claude 3 Haiku was retired by AWS 2025-10). Swap to a
+# Sonnet / Nova profile via BEDROCK_MODEL_ID if you need stronger reasoning.
 DEFAULT_MODEL_ID = os.environ.get(
-    "BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"
+    "BEDROCK_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0"
 )
 BEDROCK_REGION = os.environ.get("BEDROCK_REGION", os.environ.get("AWS_REGION", "us-east-1"))
 
@@ -336,9 +347,9 @@ def _converse_tool(system, user, tool, tool_name, max_tokens=1024):
 def _render_extract_user(text, clusters, entity_ids):
     return (
         "ACTIVE CLUSTERS (JSON):\n"
-        + json.dumps(clusters or [], ensure_ascii=False)
+        + _jdumps(clusters or [])
         + "\n\nKNOWN ENTITY IDS:\n"
-        + json.dumps(entity_ids or [], ensure_ascii=False)
+        + _jdumps(entity_ids or [])
         + "\n\n<resident_message>\n"
         + (text or "")
         + "\n</resident_message>\n\n"
@@ -358,13 +369,13 @@ def _render_verify_user(rumor, shelters, bulletins, sources, sim_clock):
     return (
         f"SIM CLOCK: {sim_clock}\n\n"
         "RUMOR CLUSTER (JSON):\n"
-        + json.dumps(rumor or {}, ensure_ascii=False)
+        + _jdumps(rumor or {})
         + "\n\nRELEVANT SHELTER ROWS:\n"
-        + json.dumps(rel_shelters, ensure_ascii=False)
+        + _jdumps(rel_shelters)
         + "\n\nRELEVANT BULLETINS (active + expired, with timestamps):\n"
-        + json.dumps(rel_bulletins, ensure_ascii=False)
+        + _jdumps(rel_bulletins)
         + "\n\nSOURCES (with authority):\n"
-        + json.dumps(sources or [], ensure_ascii=False)
+        + _jdumps(sources or [])
         + "\n\nCall record_verification now."
     )
 

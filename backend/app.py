@@ -8,8 +8,8 @@ from decimal import Decimal
 
 import clock
 import db
-import pipeline_stub as pipeline  # Phase 6 swap: `import pipeline as pipeline`
-import validator_stub as validator  # Phase 6 swap: `import validator as validator`
+import pipeline  # real Bedrock pipeline (falls back to heuristics if offline)
+import validator  # real validator (plan.md §5 rules)
 
 
 DELIVERY_DELAY_SEC = 2  # sent -> delivered promotion threshold (wall-clock seconds)

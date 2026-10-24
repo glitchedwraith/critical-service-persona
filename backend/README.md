@@ -1,37 +1,59 @@
 # Backend (P1)
 
-TrueSignal backend — AWS SAM + Lambda (Python 3.12) + DynamoDB. See [PLAN.md](PLAN.md) for the phased implementation and [../plan.md](../plan.md) §3 for the API contract.
+TrueSignal backend — Python 3.12 Lambda handler + DynamoDB + real Amazon Bedrock (Haiku 4.5 via inference profile). See [PLAN.md](PLAN.md) for the phased implementation and [../plan.md](../plan.md) §3 for the API contract.
 
-## Local dev
+## Local dev (recommended for the demo)
 
-Prereqs: `sam`, `docker`, Python 3.12.
+Runs the full backend on `localhost:3000` using DynamoDB Local in Docker + real Bedrock Converse calls. **This is the loop we validated end-to-end** — all 6 chaos actions, verify/approve/delivery, and the resolved transition all work against real Haiku 4.5.
 
-### 1. Start DynamoDB Local
+### Prereqs
+
+- `docker` (Docker Desktop running)
+- Python 3.12+ (we use a venv)
+- `.env` at repo root with `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` and `AWS_DEFAULT_REGION=us-east-1`. These need Bedrock Converse access on `us.anthropic.claude-haiku-4-5-20251001-v1:0` (override via `BEDROCK_MODEL_ID`).
+
+### 1. Start DynamoDB Local (shared-DB mode)
 
 ```sh
-docker network create truesignal-net
+docker network create truesignal-net 2>/dev/null || true
 docker run -d --name dynamodb-local --network truesignal-net \
-  -p 8000:8000 amazon/dynamodb-local
+  -p 8000:8000 amazon/dynamodb-local \
+  -jar DynamoDBLocal.jar -inMemory -sharedDb
 ```
+
+The `-sharedDb` flag is important: without it DynamoDB Local partitions by AWS access-key id, so the seed script and the server would see different databases.
 
 To stop: `docker stop dynamodb-local && docker rm dynamodb-local`.
 
-### 2. Create local tables + seed system clock
+### 2. Create tables + seed
 
 ```sh
-python scripts/create_local_tables.py
+python3 -m venv /tmp/truesignal-venv
+/tmp/truesignal-venv/bin/pip install boto3
+/tmp/truesignal-venv/bin/python scripts/create_local_tables.py
 ```
 
-Idempotent. Seeds the `system` singleton with `sim_clock=04:30` so `clock.now()` works immediately.
+### 3. Run the backend
 
-### 3. Build + run
+```sh
+set -a && source .env && set +a
+/tmp/truesignal-venv/bin/python scripts/run_local.py
+```
+
+Listens on `http://localhost:3000`. Routes match the deployed SAM API exactly. DynamoDB calls go to the local container; Bedrock calls go to real AWS.
+
+> `scripts/run_local.py` is a lightweight `http.server` shim around `app.lambda_handler` — avoids `sam local start-api`, which doesn't find Docker Desktop's non-standard socket on macOS without extra fiddling.
+
+## Deploy to AWS
 
 ```sh
 sam build
-sam local start-api --env-vars env.json --docker-network truesignal-net
+sam deploy --guided           # first time, creates samconfig entries
+sam deploy                    # subsequent, uses [default] profile
+sam deploy --config-env prod  # prod stack
 ```
 
-API base URL: `http://localhost:3000`.
+The template is correct and ready. Needs an AWS account with normal IAM privileges (workshop/sandbox accounts that block `iam:CreateRole` / `iam:PassRole` won't work — see commit history for details). API URL appears in the stack outputs.
 
 Smoke tests:
 ```sh
@@ -79,17 +101,6 @@ curl -s -X POST http://localhost:3000/chaos/conflicting_report | jq .
 curl -s -X POST http://localhost:3000/chaos/advance_clock -H 'Content-Type: application/json' -d '{"minutes":45}' | jq .
 curl -s -X POST http://localhost:3000/chaos/expire_bulletin -H 'Content-Type: application/json' -d '{"id":"B-001"}' | jq .
 ```
-
-## Deploy to AWS
-
-```sh
-sam build
-sam deploy --guided           # first time, creates samconfig entries
-sam deploy                    # subsequent, uses [default] profile
-sam deploy --config-env prod  # prod stack
-```
-
-API URL is in the stack outputs after deploy.
 
 ## Routes
 
