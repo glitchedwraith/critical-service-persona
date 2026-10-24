@@ -2,6 +2,11 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: TrueSignal backend (P1) - emergency information continuity engine
 
+Parameters:
+  BedrockModelId:
+    Type: String
+    Default: us.anthropic.claude-haiku-4-5-20251001-v1:0
+
 Globals:
   Function:
     Timeout: 30
@@ -36,6 +41,7 @@ Resources:
           TABLE_RUMORS: !Ref RumorsTable
           TABLE_OUTBOUND: !Ref OutboundTable
           TABLE_SYSTEM: !Ref SystemTable
+          BEDROCK_MODEL_ID: !Ref BedrockModelId
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref SourcesTable

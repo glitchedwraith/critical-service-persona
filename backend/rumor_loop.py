@@ -25,13 +25,26 @@ def tick():
 
 
 def _evaluate(rumor):
-    """Return (new_status_or_None, follow_up_outbound_id_or_None)."""
+    """Return (new_status_or_None, follow_up_outbound_id_or_None).
+
+    Treats missing post-send buckets as implicit zeros so a silent period
+    after approve correctly transitions to resolved (not stuck in monitoring)."""
+    first_seen = rumor.get("first_seen")
+    if not first_seen:
+        return None, None
+    now = clock.now()
+    virtual_len = (clock.parse(now) - clock.parse(first_seen)) // 10 + 1
+
     baseline = [int(x) for x in (rumor.get("baseline_rate_per_10min") or [])]
     current = [int(x) for x in (rumor.get("rate_per_10min") or [])]
     baseline_len = len(baseline)
 
-    # Need at least two post-send 10-min buckets of data before deciding.
-    if len(current) < baseline_len + 2:
+    # Pad virtually with zeros so empty buckets count as "quiet".
+    while len(current) < virtual_len:
+        current.append(0)
+
+    # Need at least two post-send 10-min buckets of (real or zero) data.
+    if virtual_len < baseline_len + 2:
         return None, None
 
     post = sum(current[baseline_len:baseline_len + 2])
