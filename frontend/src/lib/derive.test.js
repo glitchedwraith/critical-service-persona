@@ -76,3 +76,22 @@ test('trace keeps the newest entry per step; situations track progress', () => {
     system: { situations_done: ['a'], active_situation: { id: 'c', running: true } } });
   assert.deepEqual(situationStatus(s), { a: 'done', b: 'next', c: 'running' });
 });
+
+test('lastExchange pairs the demo phone\'s newest text with its reply and Bedrock time', async () => {
+  const { lastExchange } = await import('./derive.js');
+  const s = base({
+    messages: [{ id: 'M-2', from: 'me', text: 'second', reply_id: 'O-9' }, { id: 'M-1', from: 'me', text: 'first' },
+               { id: 'M-3', from: 'other', text: 'not mine' }],
+    outbound: [{ id: 'O-9', kind: 'reply', text: 'answer' }],
+    trace: [{ step: 'send', message_id: 'M-2', ms: 0 }, { step: 'step2', message_id: 'M-2', ms: 1700 },
+            { step: 'step1', message_id: 'M-2', ms: 1200 }, { step: 'step1', message_id: 'M-1', ms: 999 }],
+  });
+  const x = lastExchange(s, 'me');
+  assert.equal(x.msg.text, 'second'); assert.equal(x.reply.text, 'answer'); assert.equal(x.ms, 2900);
+  assert.equal(x.pending, false);
+  assert.equal(lastExchange(s, null), null);
+  const quiet = lastExchange(base({ messages: [{ id: 'M-1', from: 'me', text: 'x' }],
+    trace: [{ step: 'step1', message_id: 'M-1', ms: 1100 }] }), 'me');
+  assert.equal(quiet.reply, null); assert.equal(quiet.pending, false);
+  assert.equal(lastExchange(base({ messages: [{ id: 'M-1', from: 'me', text: 'x' }] }), 'me').pending, true);
+});

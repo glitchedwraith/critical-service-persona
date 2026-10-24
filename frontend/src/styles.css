@@ -58,6 +58,7 @@ small { font-size: 10.5px; letter-spacing: .14em; color: var(--muted); font-weig
 .pill { padding: 5px 11px; border-radius: 99px; border: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
 .pill.good { color: var(--green); border-color: rgba(52, 211, 153, .35); }
 .pill.bad { color: var(--red); border-color: rgba(248, 113, 113, .4); background: rgba(248, 113, 113, .08); }
+.pill.warn { color: var(--amber); border-color: rgba(251, 191, 36, .4); }
 .pill.ai.thinking { color: var(--amber); border-color: rgba(251, 191, 36, .4); display: flex; align-items: center; gap: 7px; font-variant-numeric: tabular-nums; }
 .pill.ai .spinner { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--amber); border-top-color: transparent; animation: spin .8s linear infinite; }
 .top-actions { display: flex; align-items: center; gap: 12px; }
@@ -91,6 +92,11 @@ small { font-size: 10.5px; letter-spacing: .14em; color: var(--muted); font-weig
 .resident-row { display: grid; grid-template-columns: 92px 1fr 32px; gap: 6px; }
 .resident select, .resident input { min-width: 0; background: rgba(255, 255, 255, .04); border: 1px solid var(--line); border-radius: 9px; padding: 7px 8px; font-size: 12.5px; }
 .resident select option { background: #111827; }
+.exchange { display: grid; gap: 5px; padding: 9px 10px; border-radius: 10px; background: rgba(255, 255, 255, .03); border: 1px solid var(--line); font-size: 12.5px; line-height: 1.45; }
+.exchange p { margin: 0; }
+.exchange .asked { color: var(--muted); }
+.exchange .answer { color: var(--text); }
+.exchange small { color: var(--teal); }
 .send { border-radius: 9px; background: var(--teal); color: #052e2b; font-weight: 800; }
 
 /* ---- narration ------------------------------------------------------- */

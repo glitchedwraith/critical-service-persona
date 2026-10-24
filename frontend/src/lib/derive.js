@@ -178,5 +178,18 @@ export function situationStatus(state) {
     s.id === running ? 'running' : done.has(s.id) ? 'done' : s.id === next ? 'next' : 'idle']));
 }
 
+/** The demo phone's newest text and TrueSignal's answer, for the resident box.
+ *  `ms` is Bedrock time for that message (Understand + Verify, from the trace). */
+export function lastExchange(state, phone) {
+  if (!phone) return null;
+  const msg = newestFirst((state.messages || []).filter(m => m.from === phone))[0];
+  if (!msg) return null;
+  const steps = (state.trace || []).filter(t => t.message_id === msg.id);
+  const reply = msg.reply_id ? (state.outbound || []).find(o => o.id === msg.reply_id) || null : null;
+  const ms = steps.filter(t => t.step === 'step1' || t.step === 'step2').reduce((n, t) => n + (Number(t.ms) || 0), 0);
+  const understood = steps.some(t => t.step === 'step1');
+  return { msg, reply, ms: ms || null, pending: !understood && !reply, rumor: Boolean(msg.cluster_id) };
+}
+
 /** IDs in `rows` not present in `seen` (a Set). */
 export const unseen = (rows, seen) => (rows || []).filter(r => !seen.has(r.id));

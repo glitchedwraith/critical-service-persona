@@ -11,6 +11,11 @@ export default function TopBar({ system, connected, onReset, onTour, busy }) {
         {system.cache_as_of && <div className="pill">Cache {system.cache_as_of}</div>}
         {system.delivery_fail_mode && <div className="pill bad">SMS gateway failing</div>}
         <AiPill ai={system.ai} />
+        {system.session === 'shared' && (
+          <div className="pill warn" title="The demo is busy, so you're sharing one copy with other visitors. Their clicks and resets show up here too.">
+            Shared demo
+          </div>
+        )}
       </div>
       <div className="top-actions" data-tour="top-actions">
         <span className={`conn ${connected ? 'on' : ''}`}>{connected ? 'Live' : 'Connecting…'}</span>

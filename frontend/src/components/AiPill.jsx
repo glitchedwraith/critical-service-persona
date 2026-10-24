@@ -39,8 +39,8 @@ export default function AiPill({ ai }) {
     );
   }
   return (
-    <div className="pill good ai" title="Amazon Bedrock · Claude Haiku 4.5 · time of the last model call">
-      Bedrock {ai.last_ms ? `· answered in ${secs(ai.last_ms)}` : 'ready'}
+    <div className="pill good ai" title="Amazon Bedrock · Claude Haiku 4.5 · duration of the most recent model call">
+      Bedrock {ai.last_ms ? `· last call ${secs(ai.last_ms)}` : 'ready'}
     </div>
   );
 }

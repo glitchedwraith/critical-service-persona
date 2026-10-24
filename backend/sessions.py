@@ -3,7 +3,9 @@
 Each browser sends X-Session-Id; its first request creates a private set of
 tables in DynamoDB Local (`<table>-s-<id>`) and seeds them, so one visitor's
 clicks and resets never touch anyone else's demo. Idle sessions are dropped
-after IDLE_SEC. Past MAX_SESSIONS, new visitors share the unsuffixed tables.
+after IDLE_SEC. When MAX_SESSIONS are open, a new visitor takes over the
+least-recently-used one idle for RECLAIM_IDLE_SEC; if all are active, they
+share the unsuffixed tables (GET /state reports system.session = "shared").
 
 On by default only against DynamoDB Local (DYNAMODB_ENDPOINT set): creating
 real DynamoDB tables per visitor would be slow and billable. SESSIONS=0/1
@@ -21,6 +23,9 @@ ENABLED = os.environ.get(
     "SESSIONS", "1" if os.environ.get("DYNAMODB_ENDPOINT") else "0") == "1"
 MAX_SESSIONS = int(os.environ.get("MAX_SESSIONS", "20"))
 IDLE_SEC = int(os.environ.get("SESSION_IDLE_SEC", "1800"))
+# When full, a new visitor may take over the least-recently-used session if it
+# has been idle at least this long; only if every session is active do they share.
+RECLAIM_IDLE_SEC = int(os.environ.get("SESSION_RECLAIM_IDLE_SEC", "300"))
 SWEEP_EVERY_SEC = 60
 
 _ID = re.compile(r"^[a-z0-9]{8,32}$")
@@ -84,6 +89,18 @@ def _drop(sid):
             pass
 
 
+def _reclaim_one():
+    """Drop the least-recently-used session if idle long enough (caller holds _lock)."""
+    sid, seen = min(_last_seen.items(), key=lambda kv: kv[1])
+    if time.time() - seen < RECLAIM_IDLE_SEC:
+        return False
+    _drop(sid)
+    _last_seen.pop(sid, None)
+    _ready.pop(sid, None)
+    ai_status._last_ms.pop(sid, None)
+    return True
+
+
 def ensure(raw_sid):
     """Return the session id to scope this request to, or None for shared.
     Creates and seeds the session's tables on first sight."""
@@ -95,7 +112,7 @@ def ensure(raw_sid):
         if raw_sid in _last_seen:
             _last_seen[raw_sid] = time.time()
             ready, creator = _ready[raw_sid], False
-        elif len(_last_seen) >= MAX_SESSIONS:
+        elif len(_last_seen) >= MAX_SESSIONS and not _reclaim_one():
             return None
         else:
             _last_seen[raw_sid] = time.time()

@@ -23,6 +23,7 @@ import contextlib
 import contextvars
 import json
 import logging
+import re
 import os
 import time
 from decimal import Decimal
@@ -311,10 +312,22 @@ def _attempt_verify(user, retry=False):
             tool=_VERIFY_TOOL,
             tool_name="record_verification",
         )
-        return out, int((time.time() - t0) * 1000), False
+        return _strip_markup(out), int((time.time() - t0) * 1000), False
     except Exception as e:  # noqa: BLE001
         logger.warning("Bedrock verify failed, using heuristic fallback: %s", e)
         return _heuristic_verify_shape(user), int((time.time() - t0) * 1000), True
+
+
+# Rarely the model leaks tool-call markup into a string field, e.g.
+# "...from A.</clarification_text>\n</invoke>". Cut text at the first tag.
+_MARKUP = re.compile(r"\s*(?:</[a-z_]+>|<(?:invoke|parameter)\b).*$", re.S)
+
+
+def _strip_markup(out):
+    for key in ("reply_text", "clarification_text"):
+        if isinstance(out.get(key), str):
+            out[key] = _MARKUP.sub("", out[key]).rstrip()
+    return out
 
 
 def _template_fallback(draft, ctx):
@@ -366,12 +379,24 @@ def _converse_tool(system, user, tool, tool_name, max_tokens=1024):
     raise RuntimeError(f"Bedrock response missing toolUse for {tool_name}")
 
 
+# Claude 5-generation models (Haiku 5.5 etc.) reject non-default sampling
+# parameters with a 400; older models keep the low temperature.
+_NO_SAMPLING_MODELS = ("haiku-5", "sonnet-5", "opus-5", "fable")
+
+
+def _inference_config(max_tokens):
+    config = {"maxTokens": max_tokens}
+    if not any(m in DEFAULT_MODEL_ID for m in _NO_SAMPLING_MODELS):
+        config["temperature"] = 0.1
+    return config
+
+
 def _converse_raw(system, user, tool, tool_name, max_tokens):
     return _bedrock().converse(
         modelId=DEFAULT_MODEL_ID,
         system=[{"text": system}],
         messages=[{"role": "user", "content": [{"text": user}]}],
-        inferenceConfig={"maxTokens": max_tokens, "temperature": 0.1},
+        inferenceConfig=_inference_config(max_tokens),
         toolConfig={
             "tools": [tool],
             "toolChoice": {"tool": {"name": tool_name}},

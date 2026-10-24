@@ -1,4 +1,4 @@
-import { situationStatus } from '../lib/derive.js';
+import { lastExchange, situationStatus } from '../lib/derive.js';
 import ResidentInput from './ResidentInput.jsx';
 
 export default function SituationRail({ state, onRun, onJump, replaying, busy, danaWaiting, zone, onZone, onSend }) {
@@ -26,7 +26,8 @@ export default function SituationRail({ state, onRun, onJump, replaying, busy, d
           </li>
         ))}
       </ol>
-      <ResidentInput phone={state.system.demo_phone} zones={state.zones} zone={zone} onZone={onZone} onSend={onSend} busy={busy} />
+      <ResidentInput phone={state.system.demo_phone} zones={state.zones} zone={zone} onZone={onZone} onSend={onSend} busy={Boolean(replaying)}
+        exchange={lastExchange(state, state.system.demo_phone)} />
     </aside>
   );
 }
