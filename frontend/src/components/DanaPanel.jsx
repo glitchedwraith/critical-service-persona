@@ -26,7 +26,7 @@ export default function DanaPanel({ focus, state, onAction, busy }) {
   }
 
   return (
-    <aside className={`dana glass mood-${focus.mood}`}>
+    <aside className={`dana glass mood-${focus.mood}`} data-tour="dana">
       <div className="dana-head">
         <DanaAvatar mood={focus.mood} speaking={speaking} />
         <div>
@@ -50,7 +50,7 @@ export default function DanaPanel({ focus, state, onAction, busy }) {
       {focus.actions.length > 0 && (
         <div className="dana-actions">
           {focus.actions.map(a => (
-            <button key={a.label} className={a.primary ? 'primary' : 'ghost'} disabled={busy} onClick={() => run(a)}>
+            <button key={a.label} className={a.primary ? 'primary' : 'ghost'} data-tour={a.primary ? 'dana-primary' : undefined} disabled={busy} onClick={() => run(a)}>
               {a.kind === 'edit' && editing ? 'Cancel edit' : a.label}
             </button>
           ))}

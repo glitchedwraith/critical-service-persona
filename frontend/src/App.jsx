@@ -7,6 +7,7 @@ import SituationRail from './components/SituationRail.jsx';
 import Narration from './components/Narration.jsx';
 import DanaPanel from './components/DanaPanel.jsx';
 import TraceStrip from './components/TraceStrip.jsx';
+import useGuidedTour from './tour/useGuidedTour.js';
 
 export default function App() {
   const { state, connected, error, arrivals, act } = useLiveState();
@@ -15,6 +16,7 @@ export default function App() {
   const focus = useMemo(() => danaFocus(state), [state]);
   const running = Boolean(state.system.active_situation?.running);
   const busy = pending || running || !connected;
+  const tour = useGuidedTour({ state, focus, busy, running, connected });
 
   // Fly to the zones Dana is talking about (drafts carry their target zones).
   const focusZones = useMemo(() => {
@@ -34,7 +36,7 @@ export default function App() {
           selectedZone={zone} onZoneClick={setZone} />
       </div>
       <div className="overlay">
-        <TopBar system={state.system} connected={connected} busy={busy} onReset={() => onAction('reset', {})} />
+        <TopBar system={state.system} connected={connected} busy={busy} onReset={() => onAction('reset', {})} onTour={() => tour.replay(() => onAction('reset', {}))} />
         <div className="middle">
           <SituationRail state={state} busy={busy} danaWaiting={focus.actions.length > 0}
             onRun={id => onAction('situation', { id })}

@@ -1,0 +1,22 @@
+/* Dark glass skin for driver.js popovers, matching the dashboard panels. */
+.driver-popover.ts-tour {
+  background: rgba(13, 17, 24, 0.96); color: var(--text);
+  border: 1px solid rgba(94, 234, 212, .35); border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, .5); max-width: 320px; font-family: inherit;
+}
+.driver-popover.ts-tour .driver-popover-title { font-size: 15px; font-weight: 700; color: var(--teal); }
+.driver-popover.ts-tour .driver-popover-description { font-size: 13.5px; line-height: 1.5; color: var(--text); }
+.driver-popover.ts-tour .driver-popover-close-btn { color: var(--muted); }
+.driver-popover.ts-tour .driver-popover-footer button {
+  background: rgba(94, 234, 212, .14); color: var(--teal); border: 1px solid rgba(94, 234, 212, .4);
+  text-shadow: none; border-radius: 8px; padding: 5px 12px; font-size: 13px;
+}
+.driver-popover.ts-tour .driver-popover-arrow-side-left.driver-popover-arrow { border-left-color: rgba(13, 17, 24, 0.96); }
+.driver-popover.ts-tour .driver-popover-arrow-side-right.driver-popover-arrow { border-right-color: rgba(13, 17, 24, 0.96); }
+.driver-popover.ts-tour .driver-popover-arrow-side-top.driver-popover-arrow { border-top-color: rgba(13, 17, 24, 0.96); }
+.driver-popover.ts-tour .driver-popover-arrow-side-bottom.driver-popover-arrow { border-bottom-color: rgba(13, 17, 24, 0.96); }
+/* Pulse the element the user should click. */
+.driver-active-element[data-tour="situation-next"], .driver-active-element[data-tour="dana-primary"] {
+  animation: ts-tour-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ts-tour-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(94, 234, 212, .6); } 50% { box-shadow: 0 0 0 6px rgba(94, 234, 212, 0); } }
