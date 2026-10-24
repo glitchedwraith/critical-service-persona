@@ -6,19 +6,39 @@ pipeline. Shapes match plan.md §3.4. Swap the import in app.py to pipeline
 
 def extract(text: str, clusters: list, entity_ids: list) -> dict:
     """Step 1: extract & cluster. Returns v3 §4 Step 1 shape."""
-    text_lower = text.lower()
-    if "shelter a" in text_lower and ("clos" in text_lower or "shut" in text_lower):
+    tl = text.lower()
+
+    if "shelter a" in tl and ("clos" in tl or "shut" in tl):
+        matched = _match_cluster(clusters, "shelter a")
         return {
             "question_type": "rumor",
             "claims": [{"text": "Shelter A is closed", "entity_ids": ["SH-A"]}],
-            "cluster_match": _match_cluster(clusters, "shelter a") or "R-002",
+            "cluster_match": matched,
+            "new_cluster_claim": None if matched else "Shelter A has closed",
+        }
+
+    if "water" in tl and any(w in tl for w in ("poison", "contaminat", "unsafe", "bad", "dirty")):
+        matched = _match_cluster(clusters, "water")
+        return {
+            "question_type": "rumor",
+            "claims": [{"text": "Tap water is contaminated", "entity_ids": []}],
+            "cluster_match": matched,
+            "new_cluster_claim": None if matched else "Tap water is contaminated",
+        }
+
+    if any(k in tl for k in ("shelter", "water", "open", "safe", "evac")):
+        return {
+            "question_type": "status_question",
+            "claims": [{"text": text[:120], "entity_ids": _mentioned_entities(tl, entity_ids)}],
+            "cluster_match": None,
             "new_cluster_claim": None,
         }
+
     return {
         "question_type": "other",
-        "claims": [{"text": text[:120], "entity_ids": []}],
+        "claims": [],
         "cluster_match": None,
-        "new_cluster_claim": text[:80],
+        "new_cluster_claim": None,
     }
 
 
@@ -36,7 +56,7 @@ def verify(rumor: dict, shelters: list, bulletins: list,
             "last_verified_at": "04:10",
             "expires_at": "05:10",
         }],
-        "reply_text": "Shelter A is OPEN as of 04:10 (City EOC). Reply MORE for details.",
+        "reply_text": f"Shelter A is OPEN as of 04:10 (City EOC). Reply MORE for details.",
         "clarification_text": (
             "UPDATE as of 04:10: Shelter A (Lincoln HS Gym, 123 Example Ave) "
             "is OPEN. Source: City EOC."
@@ -51,3 +71,11 @@ def _match_cluster(clusters, needle):
         if needle in (c.get("claim") or "").lower():
             return c.get("id")
     return None
+
+
+def _mentioned_entities(text_lower, entity_ids):
+    found = []
+    for eid in entity_ids:
+        if eid.lower() in text_lower:
+            found.append(eid)
+    return found

@@ -33,9 +33,26 @@ sam local start-api --env-vars env.json --docker-network truesignal-net
 
 API base URL: `http://localhost:3000`.
 
-Smoke test:
+Smoke tests:
 ```sh
-curl http://localhost:3000/state
+# Current state (sim clock, tables, trace)
+curl -s http://localhost:3000/state | jq .
+
+# Re-seed system singleton (and P4's data when available)
+curl -s -X POST http://localhost:3000/reset | jq .
+
+# Inbound SMS - creates/joins a rumor cluster, drafts an individual reply
+curl -s -X POST http://localhost:3000/sms/inbound \
+  -H 'Content-Type: application/json' \
+  -d '{"from":"+1-555-0101","role":"resident","zone":"B","text":"heard shelter A closed??"}' | jq .
+
+# Fire the emerging rule: post 5 similar messages
+for i in 1 2 3 4 5; do
+  curl -s -X POST http://localhost:3000/sms/inbound \
+    -H 'Content-Type: application/json' \
+    -d "{\"from\":\"+1-555-010$i\",\"role\":\"resident\",\"zone\":\"B\",\"text\":\"is shelter A shut $i\"}" >/dev/null
+done
+curl -s http://localhost:3000/state | jq '.rumors[0] | {id, emerging, message_count, rate_per_10min, status, clarification_id}'
 ```
 
 ## Deploy to AWS
@@ -55,10 +72,9 @@ Full contract: [../plan.md §3.2](../plan.md). Curl examples land here as each p
 
 | Phase | Route | Status |
 |---|---|---|
-| 0 | all routes return skeleton payload | done |
-| 2 | `GET /state` | pending |
-| 2 | `POST /reset` | pending |
-| 3 | `POST /sms/inbound` | pending |
+| 2 | `GET /state` | done |
+| 2 | `POST /reset` | done |
+| 3 | `POST /sms/inbound` | done |
 | 4 | `POST /rumors/{id}/verify` | pending |
 | 4 | `POST /outbound/{id}/edit` | pending |
 | 4 | `POST /outbound/{id}/approve` | pending |

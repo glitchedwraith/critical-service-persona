@@ -5,7 +5,7 @@ The sim clock is stored on the `system` DynamoDB table as a singleton row
 keyed by id="singleton". Times are "HH:MM" strings within a single hackathon
 day — no date component.
 """
-from . import db
+import db
 
 SYSTEM_ID = "singleton"
 DAY_MINUTES = 24 * 60
