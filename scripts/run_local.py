@@ -7,7 +7,7 @@ expects. DynamoDB Local via Docker, Bedrock calls hit real AWS.
 
 Usage:
     source .env                # exports AWS creds + bearer token
-    /tmp/truesignal-venv/bin/python scripts/run_local.py
+    .venv/bin/python scripts/run_local.py
     # listens on http://localhost:3000, same URLs as the deployed API
 
 Required env vars (loaded from .env + a few defaults below):
@@ -93,13 +93,16 @@ class Handler(BaseHTTPRequestHandler):
         self._send_raw(status, json.dumps(obj), {"Content-Type": "application/json"})
 
     def _send_raw(self, status, body, headers):
-        self.send_response(status)
-        headers.setdefault("Access-Control-Allow-Origin", "*")
-        for k, v in headers.items():
-            self.send_header(k, v)
-        self.end_headers()
-        if body:
-            self.wfile.write(body.encode("utf-8") if isinstance(body, str) else body)
+        try:
+            self.send_response(status)
+            headers.setdefault("Access-Control-Allow-Origin", "*")
+            for k, v in headers.items():
+                self.send_header(k, v)
+            self.end_headers()
+            if body:
+                self.wfile.write(body.encode("utf-8") if isinstance(body, str) else body)
+        except (BrokenPipeError, ConnectionResetError):
+            pass  # browser tab closed mid-poll
 
     def log_message(self, fmt, *args):
         sys.stderr.write(f"{self.command} {self.path} -> {args[1] if len(args) > 1 else '?'}\n")

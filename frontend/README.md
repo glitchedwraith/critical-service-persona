@@ -18,7 +18,7 @@ The frontend holds **no demo data**. Everything comes from `GET /state`, which i
 
 ## Run locally
 
-Start the backend first (`scripts/start_backend.sh` from the repo root, port 3000), then:
+Usually you just run `./start.sh` from the repo root. To run the frontend alone against a running backend (port 3000):
 
 ```sh
 cp .env.example .env      # set VITE_API_BASE_URL; optionally VITE_CARTO_API_KEY

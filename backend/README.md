@@ -36,6 +36,8 @@ AWS_BEARER_TOKEN_BEDROCK=xxxxxxxxxxxxxxxxxxxxxxxxx            # optional
 
 This is the loop we validated end-to-end — all 6 chaos actions, verify/approve/delivery, and the resolved transition all work against real Haiku 4.5.
 
+> **One command:** `./start.sh` at the repo root does every step below and also starts the frontend. The manual steps are here for debugging.
+
 ### Prereqs
 
 - Docker Desktop running (just the daemon; we don't use `sam local`)
@@ -46,8 +48,8 @@ This is the loop we validated end-to-end — all 6 chaos actions, verify/approve
 ### 1. Create a Python venv + install `boto3`
 
 ```sh
-python3 -m venv /tmp/truesignal-venv
-/tmp/truesignal-venv/bin/pip install boto3
+python3 -m venv .venv
+.venv/bin/pip install -r backend/requirements.txt
 ```
 
 (Any venv path works — this is just so `boto3` lives somewhere pip can write to. The repo's Lambda bundle ships its own `boto3`; this venv is only for the local scripts.)
@@ -68,7 +70,7 @@ To stop later: `docker stop dynamodb-local && docker rm dynamodb-local`.
 ### 3. Create the 8 tables
 
 ```sh
-/tmp/truesignal-venv/bin/python scripts/create_local_tables.py
+.venv/bin/python scripts/create_local_tables.py
 ```
 
 Idempotent. Creates `sources, bulletins, shelters, zones, messages, rumors, outbound, system`.
@@ -76,7 +78,7 @@ Idempotent. Creates `sources, bulletins, shelters, zones, messages, rumors, outb
 ### 4. Load P4's seed data
 
 ```sh
-/tmp/truesignal-venv/bin/python scripts/seed_local.py
+.venv/bin/python scripts/seed_local.py
 ```
 
 Truncates every table and loads [seed/data/](seed/data/) (6 sources, 3 San Jose zones, 4 shelters with coordinates, 6 bulletins). `POST /reset` does exactly the same thing, so a demo retake is one click. Resident-message scripts live in [seed/scripts/rumors.json](seed/scripts/rumors.json); the 14 guided situations in [seed/data/situations.json](seed/data/situations.json). The seed package lives under `backend/` so it ships inside the Lambda (`CodeUri: backend/`).
@@ -98,7 +100,7 @@ Expect `pong`. If you see `ResourceNotFoundException` the model is retired or no
 
 ```sh
 set -a && source .env && set +a
-/tmp/truesignal-venv/bin/python scripts/run_local.py
+.venv/bin/python scripts/run_local.py
 ```
 
 Listens on `http://localhost:3000`. Routes match the deployed SAM API exactly. DynamoDB calls go to the local container; Bedrock calls go to real AWS. Logs each request to stderr.
@@ -176,7 +178,7 @@ curl -s -X POST http://localhost:3000/chaos/reverify_open | jq .
 | Bedrock calls fail with `UnrecognizedClientException` | Session token expired — refresh `.env` from your workshop console and `source .env` again. |
 | Bedrock calls fail with `ResourceNotFoundException: model version has reached end of life` | Model ID retired. Set `BEDROCK_MODEL_ID=us.anthropic.claude-haiku-4-5-20251001-v1:0` or pick another current ID from `aws bedrock list-inference-profiles --region us-east-1`. |
 | `clock.now()` raises `system singleton missing` | Run step 3 (`create_local_tables.py`) or `POST /reset`. |
-| Port 3000 already in use | `PORT=3001 /tmp/truesignal-venv/bin/python scripts/run_local.py` and point the frontend at the new URL. |
+| Port 3000 already in use | `PORT=3001 .venv/bin/python scripts/run_local.py` and point the frontend at the new URL. |
 
 ---
 

@@ -1,7 +1,7 @@
 """Load P4 seed data into DynamoDB Local (same as POST /reset).
 
 Usage (repo root, DynamoDB Local running):
-    /tmp/truesignal-venv/bin/python scripts/seed_local.py
+    .venv/bin/python scripts/seed_local.py
 """
 import os
 import sys
