@@ -60,6 +60,14 @@ test('outdated, failed, monitoring and resolved states', () => {
   assert.equal(danaFocus(base({ rumors: [{ id: 'R-1', claim: 'c', status: 'resolved' }] })).mood, 'good');
 });
 
+test('a monitoring rumor always offers a way to move the clock forward', () => {
+  const f = danaFocus(base({ rumors: [{ id: 'R-1', claim: 'c', status: 'monitoring' }] }));
+  assert.equal(f.actions.length, 1);
+  assert.equal(f.actions[0].kind, 'chaos');
+  assert.equal(f.actions[0].action, 'advance_clock');
+  assert.deepEqual(f.actions[0].payload, { minutes: 20 });
+});
+
 test('zone moods follow the rumors their residents texted about', () => {
   const s = base({
     rumors: [{ id: 'R-1', status: 'reopened' }, { id: 'R-2', status: 'monitoring' }],

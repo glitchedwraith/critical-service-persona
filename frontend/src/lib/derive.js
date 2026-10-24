@@ -112,7 +112,11 @@ export function danaFocus(state) {
   // 6. Watching / done.
   const watching = rumors.find(r => r.status === 'monitoring');
   if (watching) return {
-    mood: 'watch', rumor: watching, draft: null, actions: [],
+    mood: 'watch', rumor: watching, draft: null,
+    // Nothing else moves the sim clock once the rail's "rumor dies down" step is
+    // done, so without this a rumor sent later (e.g. after Dana picks a source)
+    // would sit in monitoring forever.
+    actions: [{ kind: 'chaos', action: 'advance_clock', label: 'Skip ahead 20 min', primary: true, payload: { minutes: 20 } }],
     line: `Sent. Watching whether “${shortClaim(watching.claim)}” dies down…`,
   };
   const stale = [...shelters, ...(state.bulletins || [])].some(x => x.expired && x.status !== 'superseded');
