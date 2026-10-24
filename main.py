@@ -1,11 +1,10 @@
-from pydantic_core.core_schema import model_field
 from strands import Agent
 from strands.models import BedrockModel
 import boto3
 
 # define model to use
 model = BedrockModel(
-    model_id="amazon.nova-2-5-sonic",
+    model_id="us.amazon.nova-lite-v1:0",
     region_name="us-east-1",
 )
 
